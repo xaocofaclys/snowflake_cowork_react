@@ -42,6 +42,7 @@ docs/            documentation
 3. [Snowflake setup](docs/03-snowflake-setup.md): setup scripts, agent grants, users
 4. [SPCS deployment](docs/04-spcs-deployment.md): build, push, deploy, release
 5. [Operations](docs/05-operations.md): health checks, troubleshooting, security
+6. [Workflows](docs/06-workflows.md): combine Snowflake agents into one chatbot
 
 ## Tests
 

@@ -34,7 +34,22 @@ export type ContentBlock =
       queryId?: string;
     }
   | { type: 'map'; id: string; toolUseId: string; spec: Record<string, unknown> }
+  | { type: 'workflow'; steps: WorkflowStep[] }
   | { type: 'error'; message: string };
+
+export interface WorkflowStep {
+  nodeId: string;
+  run: number;
+  label: string;
+  kind: string;
+  status: 'running' | 'success' | 'error' | 'skipped';
+  input?: string;
+  output?: string;
+  decision?: string;
+  error?: string;
+  /** The agent's own blocks (text, SQL, tables, charts) for agent nodes. */
+  blocks: ContentBlock[];
+}
 
 export type BlockOf<T extends ContentBlock['type']> = Extract<ContentBlock, { type: T }>;
 
@@ -48,6 +63,7 @@ export class BlockBuilder {
   private keyed = new Map<string, ContentBlock>();
   private sqlByTool = new Map<string, { sql?: string; queryId?: string }>();
   private seq = 0;
+  private stepBuilders = new Map<string, BlockBuilder>();
 
   get userMessageId(): number | undefined {
     return this._userMessageId;
@@ -157,6 +173,28 @@ export class BlockBuilder {
         }));
         break;
       }
+      case 'node_start': {
+        const wf = this.upsert('workflow', () => ({ type: 'workflow', steps: [] })) as BlockOf<'workflow'>;
+        const inner = new BlockBuilder();
+        this.stepBuilders.set(`${ev.nodeId}#${ev.run}`, inner);
+        wf.steps.push({ nodeId: ev.nodeId, run: ev.run, label: ev.label, kind: ev.kind, status: 'running', input: ev.input, blocks: inner.blocks });
+        break;
+      }
+      case 'node_event':
+        this.stepBuilders.get(`${ev.nodeId}#${ev.run}`)?.add(ev.event);
+        break;
+      case 'node_end': {
+        const wf = this.keyed.get('workflow') as BlockOf<'workflow'> | undefined;
+        const step = wf?.steps.find((s) => s.nodeId === ev.nodeId && s.run === ev.run);
+        if (step) {
+          step.status = ev.status;
+          step.output = ev.output;
+          step.decision = ev.decision;
+          step.error = ev.error;
+          this.stepBuilders.get(`${ev.nodeId}#${ev.run}`)?.finalize();
+        }
+        break;
+      }
       case 'error':
         this.blocks.push({ type: 'error', message: ev.message });
         break;
@@ -181,7 +219,10 @@ export class BlockBuilder {
 
   /** Marks tools still flagged as running as finished (stream ended). */
   finalize(): ContentBlock[] {
-    for (const b of this.blocks) if (b.type === 'tool' && b.status === 'running') b.status = 'success';
+    for (const b of this.blocks) {
+      if (b.type === 'tool' && b.status === 'running') b.status = 'success';
+      if (b.type === 'workflow') for (const s of b.steps) if (s.status === 'running') s.status = 'error';
+    }
     return this.blocks;
   }
 

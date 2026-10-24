@@ -32,6 +32,12 @@ export function ChatView({ threadId }: { threadId?: string }) {
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
 
+  // Deep link from the workflow playground: /?agent=<id>
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get('agent');
+    if (fromUrl) setPicked(fromUrl);
+  }, []);
+
   const agentId = data?.thread.agentId ?? picked ?? me?.settings.defaultAgentId ?? agents[0]?.id;
   const agent = agents.find((a) => a.id === agentId);
   const messages = useMemo(() => data?.messages ?? [], [data]);

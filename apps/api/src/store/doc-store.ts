@@ -12,6 +12,9 @@ export const COLLECTIONS = [
   'MEMORIES',
   'SKILLS',
   'SETTINGS',
+  'WORKFLOWS',
+  /** Single row ID='app': UPDATED_AT is the last time anyone used the app (read by the idle auto-suspend task). */
+  'ACTIVITY',
 ] as const;
 export type Collection = (typeof COLLECTIONS)[number];
 

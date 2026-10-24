@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AgentInfo, Artifact, Me, Memory, Message, Skill, Thread, UserSettings } from '@cowork/shared';
+import type { AgentInfo, Artifact, Me, Memory, Message, Skill, Thread, UserSettings, Workflow } from '@cowork/shared';
 import { api } from './api';
 
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/auth/me'), retry: false });
@@ -42,3 +42,8 @@ export function useSaveArtifact() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['artifacts'] }),
   });
 }
+
+export const useWorkflows = () => useQuery({ queryKey: ['workflows'], queryFn: () => api<Workflow[]>('/workflows') });
+
+export const useWorkflow = (id: string) =>
+  useQuery({ queryKey: ['workflow', id], queryFn: () => api<Workflow>(`/workflows/${id}`) });

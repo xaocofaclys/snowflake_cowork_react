@@ -116,7 +116,7 @@ export class CortexService {
   async *run(cred: SfCredential | undefined, input: RunInput): AsyncGenerator<StreamEvent> {
     let body: AsyncIterable<Uint8Array>;
     if (env.CORTEX_MOCK || !cred) {
-      body = mockAgentStream(input.text, input.signal);
+      body = mockAgentStream(input.text, input.signal, input.agentId.split('.').pop());
     } else {
       const { database, schema, name } = splitId(input.agentId);
       const messages = [

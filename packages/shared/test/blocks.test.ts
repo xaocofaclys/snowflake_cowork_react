@@ -30,3 +30,26 @@ describe('BlockBuilder', () => {
     expect(b.blocks).toHaveLength(2);
   });
 });
+
+import { validateGraph } from '../src/workflow';
+
+describe('validateGraph', () => {
+  it('keeps problem messages distinct when two steps share a label', () => {
+    const p = { x: 0, y: 0 };
+    const problems = validateGraph({
+      nodes: [
+        { id: 's', type: 'start', position: p },
+        { id: 'a1', type: 'agent', label: 'NBA', agentId: 'D.S.NBA', inputTemplate: '', position: p },
+        { id: 'a2', type: 'agent', label: 'NBA', agentId: 'D.S.NBA', inputTemplate: '', position: p },
+        { id: 'e', type: 'end', position: p },
+      ],
+      edges: [
+        { id: '1', source: 's', target: 'a1' },
+        { id: '2', source: 's', target: 'a2' },
+      ],
+    });
+    expect(problems).toContain('"NBA (a1)" has no outgoing connection.');
+    expect(problems).toContain('"NBA (a2)" has no outgoing connection.');
+    expect(new Set(problems).size).toBe(problems.length);
+  });
+});

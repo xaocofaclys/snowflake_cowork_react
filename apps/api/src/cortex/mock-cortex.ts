@@ -138,11 +138,28 @@ function chunks(text: string): string[] {
   return text.match(/\S+\s*|\s+/g) ?? [text];
 }
 
-export async function* mockAgentStream(question: string, signal?: AbortSignal): AsyncGenerator<Uint8Array> {
+/** Text answers for the mock workflow agents (content generator, MLR guardrail). */
+function mockWorkflowAnswer(agentName: string, question: string): string | null {
+  if (agentName === 'CONTENT_GENERATOR') {
+    const revising = /verdict:\s*fail/i.test(question);
+    return revising
+      ? '**Revised HCP email: CARDIVEXA**\n\nDear Dr. Rao,\n\nCARDIVEXA is indicated for adults with HFrEF to reduce the risk of cardiovascular death and hospitalization. In the pivotal trial, patients saw fewer HF hospitalizations versus placebo.\n\n**Important Safety Information:** CARDIVEXA may cause hypotension and renal impairment. Monitor potassium. See full Prescribing Information.\n\nBest regards,\nYour CARDIVEXA representative'
+      : '**HCP email: CARDIVEXA**\n\nDear Dr. Rao,\n\nCARDIVEXA is the breakthrough your HFrEF patients have been waiting for, with dramatically better outcomes than anything else available.\n\nBest regards,\nYour CARDIVEXA representative';
+  }
+  if (agentName === 'MLR_GUARDRAIL') {
+    return /important safety information/i.test(question)
+      ? 'Verdict: PASS\n\nClaims are consistent with the label, fair balance is present, and the Important Safety Information is included.'
+      : 'Verdict: FAIL\n\n1. "Breakthrough" and "dramatically better outcomes" are superiority claims not supported by the label.\n2. Missing fair balance and Important Safety Information.\n\nRequired: remove superlatives, state the indication, add ISI.';
+  }
+  return null;
+}
+
+export async function* mockAgentStream(question: string, signal?: AbortSignal, agentName = 'SALES_ANALYST'): AsyncGenerator<Uint8Array> {
   const userMsg = ++mockMessage;
   const asstMsg = ++mockMessage;
   const runId = `mock-${asstMsg}`;
-  const s = scenario(question.replace(/<user_context>[\s\S]*?<\/user_context>/, ''));
+  const workflowText = mockWorkflowAnswer(agentName, question);
+  const s = workflowText ? null : scenario(question.replace(/<user_context>[\s\S]*?<\/user_context>/, ''));
   let idx = 0;
   const step = async (ms: number) => {
     await sleep(ms);
@@ -158,7 +175,12 @@ export async function* mockAgentStream(question: string, signal?: AbortSignal): 
   }
   idx++;
 
-  if (!s) {
+  if (workflowText) {
+    for (const t of chunks(workflowText)) {
+      yield sse('response.text.delta', { content_index: idx, text: t });
+      await step(12);
+    }
+  } else if (!s) {
     const text =
       "I'm a demo text-to-SQL agent running in **mock mode**. Try asking:\n\n- *Show monthly revenue for 1997*\n- *Revenue by region*\n- *Top 10 customers by spend* (table only, so the app generates the chart)\n- *Revenue by nation*";
     for (const t of chunks(text)) {
@@ -240,5 +262,21 @@ export const MOCK_AGENTS = [
       'Top 10 customers by spend',
       'Revenue by nation',
     ],
+  },
+  {
+    database: 'COWORK_DEMO',
+    schema: 'AGENTS',
+    name: 'CONTENT_GENERATOR',
+    displayName: 'Content Generator',
+    description: 'Drafts HCP-facing promotional content.',
+    sampleQuestions: ['Write an HCP email introducing CARDIVEXA'],
+  },
+  {
+    database: 'COWORK_DEMO',
+    schema: 'AGENTS',
+    name: 'MLR_GUARDRAIL',
+    displayName: 'MLR Guardrail',
+    description: 'Reviews content against medical, legal and regulatory rules.',
+    sampleQuestions: ['Review this claim: CARDIVEXA is the best HFrEF drug'],
   },
 ];

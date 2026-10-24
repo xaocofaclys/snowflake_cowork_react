@@ -7,6 +7,7 @@
 | 3 | [Snowflake setup](03-snowflake-setup.md) | The setup scripts in order, agent grants, service user, OAuth, adding users |
 | 4 | [SPCS deployment](04-spcs-deployment.md) | Images, router, build and push, service spec, endpoint access, releases, cost |
 | 5 | [Operations](05-operations.md) | Health checks, logs, issues we hit and their fixes, security notes |
+| 6 | [Workflows](06-workflows.md) | Composing Snowflake agents: sequential, parallel, conditional (AI_CLASSIFY), builder permissions, automatic agent access |
 
 ## Current deployment
 
@@ -46,5 +47,5 @@
 
 | Phase | Items |
 |---|---|
-| **2** | Visual multi-agent workflow builder (React Flow DAG of agents → published as one chatbot), deep research (plan → parallel agent calls → cited report), dashboards from artifacts, richer sharing |
+| **2** | ✅ Workflow playground + builder (sequential / parallel / conditional with AI_CLASSIFY), builder-role hook, automatic agent grants, IST auto start/stop. Next: deep research, dashboards from artifacts, richer sharing |
 | **3** | Automations (scheduled prompts and skills with email via `SYSTEM$SEND_EMAIL`), file upload (stage + `AI_PARSE_DOCUMENT`), PDF/PPTX export, maps (`response.map`), MCP connectors, caller's rights in SPCS, Redis container in the service |

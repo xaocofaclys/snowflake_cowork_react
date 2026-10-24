@@ -48,6 +48,30 @@ export class LlmService {
     }
   }
 
+  /**
+   * Picks one of `labels` for `text` with AI_CLASSIFY. Returns null when unavailable
+   * (callers fall back to keyword matching). Swap in Snowflake Decision here once the account has it.
+   */
+  async classify(text: string, labels: string[], instructions?: string, user?: SfCredential): Promise<string | null> {
+    const cred = this.cred(user);
+    if (!this.enabled || !cred || labels.length < 2) return null;
+    try {
+      const config = instructions ? { task_description: instructions } : {};
+      const r = await this.sf.sql(
+        'SELECT AI_CLASSIFY(?, PARSE_JSON(?)::ARRAY, PARSE_JSON(?)::OBJECT)',
+        [text.slice(0, 12_000), JSON.stringify(labels), JSON.stringify(config)],
+        cred,
+      );
+      const raw = r.rows[0]?.[0];
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      const label = parsed?.labels?.[0];
+      return labels.includes(label) ? label : null;
+    } catch (e) {
+      this.log.warn(`AI_CLASSIFY failed: ${(e as Error).message}`);
+      return null;
+    }
+  }
+
   async embed(text: string, user?: SfCredential): Promise<number[] | null> {
     const cred = this.cred(user);
     if (!this.enabled || !cred || !SAFE_MODEL.test(env.EMBED_MODEL)) return null;

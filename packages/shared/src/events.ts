@@ -71,6 +71,18 @@ export type StreamEvent =
   | { type: 'warning'; message: string; code?: string }
   | { type: 'error'; message: string; code?: string }
   | { type: 'metadata'; role: 'user' | 'assistant'; messageId: number; runId?: string }
+  /** Workflow runs: per-node progress; inner agent events are wrapped in node_event. */
+  | { type: 'node_start'; nodeId: string; run: number; label: string; kind: string; input?: string }
+  | { type: 'node_event'; nodeId: string; run: number; event: StreamEvent }
+  | {
+      type: 'node_end';
+      nodeId: string;
+      run: number;
+      status: 'success' | 'error' | 'skipped';
+      output?: string;
+      decision?: string;
+      error?: string;
+    }
   /** App-level events */
   | { type: 'thread'; threadId: string; title?: string }
   | { type: 'memory'; saved: string[] }

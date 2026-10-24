@@ -11,6 +11,7 @@ import { MemoryModule } from './memory/memory.module';
 import { SkillsModule } from './skills/skills.module';
 import { StoreModule } from './store/store.module';
 import { HealthController } from './health.controller';
+import { WorkflowsModule } from './workflows/workflows.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { HealthController } from './health.controller';
     ArtifactsModule,
     MemoryModule,
     SkillsModule,
+    WorkflowsModule,
   ],
   controllers: [HealthController],
 })

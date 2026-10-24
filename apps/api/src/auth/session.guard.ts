@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { SetMetadata } from '@nestjs/common';
+import { ActivityService } from '../common/activity.service';
 import { AuthService } from './auth.service';
 
 export const SESSION_COOKIE = 'cw_sid';
@@ -11,6 +12,7 @@ export class SessionGuard implements CanActivate {
   constructor(
     private readonly auth: AuthService,
     private readonly reflector: Reflector,
+    private readonly activity: ActivityService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -19,6 +21,7 @@ export class SessionGuard implements CanActivate {
     const auth = await this.auth.resolve(req.cookies?.[SESSION_COOKIE], req.headers);
     if (!auth) throw new UnauthorizedException();
     req.auth = auth;
+    this.activity.touch();
     return true;
   }
 }

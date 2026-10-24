@@ -9,6 +9,7 @@ import { Markdown } from './Markdown';
 import { Reasoning } from './blocks/Reasoning';
 import { ResultCard, type ResultContext, type ResultGroup } from './blocks/ResultCard';
 import { IconButton } from './ui';
+import { WorkflowTrace } from './WorkflowTrace';
 
 export function UserMessage({ text }: { text: string }) {
   return (
@@ -20,6 +21,7 @@ export function UserMessage({ text }: { text: string }) {
 
 type Item =
   | { kind: 'text'; block: BlockOf<'text'> }
+  | { kind: 'workflow'; block: BlockOf<'workflow'> }
   | { kind: 'result'; group: ResultGroup }
   | { kind: 'error'; message: string };
 
@@ -49,7 +51,8 @@ function layout(blocks: ContentBlock[]) {
     else if (b.type === 'chart') {
       const target = groups.get(b.toolUseId) ?? [...groups.values()].reverse().find((g) => g.tables.length);
       (target ?? group(b.toolUseId)).charts.push(b);
-    } else if (b.type === 'error') items.push({ kind: 'error', message: b.message });
+    } else if (b.type === 'workflow') items.push({ kind: 'workflow', block: b });
+    else if (b.type === 'error') items.push({ kind: 'error', message: b.message });
   }
   return { steps, thinking, items };
 }
@@ -78,6 +81,8 @@ export function AssistantMessage({
             <Markdown text={it.block.text} caret={streaming && it === lastText} />
             {!!it.block.annotations?.length && <Citations annotations={it.block.annotations} />}
           </div>
+        ) : it.kind === 'workflow' ? (
+          <WorkflowTrace key={`wf-${i}`} steps={it.block.steps} streaming={streaming} ctx={ctx} />
         ) : it.kind === 'result' ? (
           <ResultCard key={it.group.toolUseId} group={it.group} ctx={ctx} streaming={streaming} />
         ) : (

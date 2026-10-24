@@ -18,6 +18,7 @@ import {
   Sun,
   Trash2,
   Wand2,
+  Workflow,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -55,6 +56,7 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
 
   const nav = [
     { href: '/artifacts', label: 'Artifacts', icon: Bookmark },
+    { href: '/workflows', label: 'Workflows', icon: Workflow },
     { href: '/skills', label: 'Skills', icon: Wand2 },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];

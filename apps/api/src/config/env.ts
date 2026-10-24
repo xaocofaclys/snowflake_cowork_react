@@ -52,6 +52,9 @@ const schema = z.object({
   /** Comma-separated DB.SCHEMA list to discover agents in. Empty = SHOW AGENTS IN ACCOUNT. */
   AGENT_LOCATIONS: z.string().default(''),
 
+  /** Snowflake role required to build workflows. Empty = everyone can build. */
+  WORKFLOW_BUILDER_ROLE: z.string().default(''),
+
   LLM_MODEL: z.string().default('llama3.1-70b'),
   EMBED_MODEL: z.string().default('snowflake-arctic-embed-m-v1.5'),
   ARTIFACT_CACHE_TTL: z.coerce.number().default(300),

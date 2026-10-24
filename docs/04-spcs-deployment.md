@@ -138,7 +138,33 @@ SELECT SYSTEM$GET_SERVICE_STATUS('COWORK_APP.SPCS.COWORK_SERVICE');
 Always use a new tag. Re-pushing the same tag doesn't reliably make a running service pull again. The ingress URL stays the
 same across upgrades.
 
-## 4.6 Cost control
+## 4.6 Cost control: automatic start and stop (IST)
+
+A service with a public endpoint can't use SPCS auto-suspend ("Auto suspend is not supported for services with public
+endpoints"), and a compute pool can't suspend while a service runs on it. So `06_phase2.sql` PART B stops and starts
+the service on purpose:
+
+| When | What happens |
+|---|---|
+| 09:00 IST, Mon–Fri | Task `COWORK_START_WEEKDAYS` → `START_COWORK()` resumes the pool and service |
+| 09:00–20:00 IST, Mon–Fri | Stays up (instant for users) |
+| Any other time, every 15 min | Task `COWORK_IDLE_STOP` → `COWORK_IDLE_CHECK(60)`: if nobody used the app for 60 min, `STOP_COWORK()` suspends the service, then the pool (`AUTO_SUSPEND_SECS=300` as a backstop) |
+| Whenever needed | Anyone with `COWORK_USER`: `CALL COWORK_APP.SPCS.START_COWORK();` in a Snowsight worksheet. Ready in about 3–5 min |
+
+"Used" means any authenticated request. The API updates `COWORK_APP.CORE.ACTIVITY` (row `ID='app'`) at most every 5 minutes,
+and `START_COWORK()` also touches it so a manual start gets a full idle window. Both tasks are serverless (no warehouse
+wakes up) and run as `COWORK_APP_SERVICE`, which needs `EXECUTE TASK`, `EXECUTE MANAGED TASK` and `OPERATE` on the pool
+(PART A).
+
+```sql
+SHOW TASKS IN SCHEMA COWORK_APP.SPCS;
+CALL COWORK_APP.SPCS.COWORK_IDLE_CHECK(60);     -- what the task would do right now
+ALTER TASK COWORK_APP.SPCS.COWORK_IDLE_STOP SUSPEND;   -- pause automation
+```
+
+To change hours, edit the CRON in `COWORK_START_WEEKDAYS` and the `HOUR()` window in `COWORK_IDLE_CHECK`.
+
+### Manual control
 
 ```sql
 ALTER SERVICE COWORK_APP.SPCS.COWORK_SERVICE SUSPEND;

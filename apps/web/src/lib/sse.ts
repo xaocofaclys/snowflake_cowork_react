@@ -2,19 +2,33 @@ import type { StreamEvent } from '@cowork/shared';
 import { API_URL, ApiError } from './api';
 
 /** POSTs a chat turn and calls onEvent for each normalized SSE event until the stream ends. */
-export async function streamChat(
+export function streamChat(
   body: { threadId?: string; agentId: string; text: string },
   onEvent: (ev: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  const res = await fetch(`${API_URL}/chat/stream`, {
+  return streamPost('/chat/stream', body, onEvent, signal);
+}
+
+/** POSTs JSON to an SSE endpoint and calls onEvent per event until the stream ends. */
+export async function streamPost(path: string, body: unknown, onEvent: (ev: StreamEvent) => void, signal: AbortSignal): Promise<void> {
+  const res = await fetch(`${API_URL}${path}`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify(body),
     signal,
   });
-  if (!res.ok || !res.body) throw new ApiError(`Chat request failed (${res.status})`, res.status);
+  if (!res.ok || !res.body) {
+    let msg = `Request failed (${res.status})`;
+    try {
+      const j = await res.json();
+      msg = Array.isArray(j.message) ? j.message.join(', ') : (j.message ?? msg);
+    } catch {
+      /* not JSON */
+    }
+    throw new ApiError(msg, res.status);
+  }
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
   let buf = '';

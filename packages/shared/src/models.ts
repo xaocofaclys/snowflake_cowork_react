@@ -19,6 +19,8 @@ export interface AgentInfo {
   description?: string;
   sampleQuestions: string[];
   kind: 'agent' | 'workflow';
+  /** For workflows: who built it. */
+  owner?: string;
 }
 
 export interface Thread {
@@ -98,8 +100,14 @@ export interface UserSettings {
   autoChart: boolean;
 }
 
+export interface Permissions {
+  /** Create, edit, publish and delete workflows. Running published workflows is open to everyone. */
+  buildWorkflows: boolean;
+}
+
 export interface Me {
   user: User;
   settings: UserSettings;
+  permissions: Permissions;
   mode: { cortexMock: boolean; authMode: 'oauth' | 'dev' | 'spcs' };
 }

@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import type { Me, UserSettings } from '@cowork/shared';
 import { env } from '../config/env';
 import { AuthService } from './auth.service';
+import { PermissionsService } from './permissions.service';
 import { Auth, type AuthContext } from './auth.types';
 import { Public, SESSION_COOKIE } from './session.guard';
 import { SettingsService } from './settings.service';
@@ -14,6 +15,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly settings: SettingsService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   @Public()
@@ -60,6 +62,7 @@ export class AuthController {
     return {
       user: { ...a.user, warehouse: env.SNOWFLAKE_WAREHOUSE },
       settings: await this.settings.get(a.user.id),
+      permissions: await this.permissions.forUser(a.user),
       mode: { cortexMock: env.CORTEX_MOCK, authMode: env.AUTH_MODE },
     };
   }
