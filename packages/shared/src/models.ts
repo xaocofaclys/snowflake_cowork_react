@@ -46,7 +46,22 @@ export interface Message {
   createdAt: string;
 }
 
-export type ArtifactType = 'chart' | 'table' | 'answer';
+export type ArtifactType = 'chart' | 'table' | 'answer' | 'report';
+
+/** "Agent" id meaning: let the app choose the agent(s) for each task. */
+export const AUTO_AGENT_ID = 'auto';
+
+/** One researched sub-question of a deep-research report; cited as [n]. */
+export interface ResearchFinding {
+  n: number;
+  question: string;
+  agentId: string;
+  text: string;
+  sql?: string;
+  table?: TableData;
+  spec?: Record<string, unknown>;
+  error?: string;
+}
 
 export interface Artifact {
   id: string;
@@ -57,6 +72,10 @@ export interface Artifact {
   spec?: Record<string, unknown>;
   table?: TableData;
   text?: string;
+  /** answer: the full message blocks; report: the findings behind each [n] citation. */
+  blocks?: ContentBlock[];
+  findings?: ResearchFinding[];
+  question?: string;
   sql?: string;
   queryId?: string;
   agentId?: string;
@@ -110,4 +129,70 @@ export interface Me {
   settings: UserSettings;
   permissions: Permissions;
   mode: { cortexMock: boolean; authMode: 'oauth' | 'dev' | 'spcs' };
+}
+
+export interface DashboardItem {
+  artifactId: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface Dashboard {
+  id: string;
+  userId: string;
+  title: string;
+  description?: string;
+  items: DashboardItem[];
+  sharedWith?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AutomationTargetKind = 'agent' | 'workflow' | 'research';
+
+export interface Automation {
+  id: string;
+  userId: string;
+  ownerName?: string;
+  name: string;
+  prompt: string;
+  target: { kind: AutomationTargetKind; agentId: string };
+  /** 5-field cron, evaluated in `timezone`. */
+  schedule: { cron: string; timezone: string };
+  email?: { enabled: boolean; to: string[] };
+  enabled: boolean;
+  nextRunAt?: string;
+  lastRunAt?: string;
+  lastStatus?: AutomationRunStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AutomationRunStatus = 'running' | 'success' | 'error' | 'missed';
+
+export interface AutomationRun {
+  id: string;
+  userId: string;
+  automationId: string;
+  status: AutomationRunStatus;
+  trigger: 'schedule' | 'manual';
+  startedAt: string;
+  finishedAt?: string;
+  artifactId?: string;
+  emailed?: boolean;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** What the chat proposes when someone asks to schedule something; created only after confirmation. */
+export interface AutomationProposal {
+  name: string;
+  prompt: string;
+  target: Automation['target'];
+  schedule: Automation['schedule'];
+  email: { enabled: boolean; to: string[] };
+  summary: string;
 }

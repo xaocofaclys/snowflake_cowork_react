@@ -1,10 +1,13 @@
 'use client';
 
-import { AlertTriangle, BookMarked, Check, Copy, Sparkle, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BookMarked, CalendarPlus, Check, Copy, FileText, Sparkle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
-import { blocksToText, type BlockOf, type ContentBlock } from '@cowork/shared';
+import { AUTO_AGENT_ID, blocksToText, isWorkflowAgentId, type Automation, type BlockOf, type ContentBlock } from '@cowork/shared';
 import { api } from '@/lib/api';
+import { useAgents } from '@/lib/hooks';
+import { AutomationEditor } from './AutomationEditor';
+import { AutomationProposalCard } from './AutomationProposalCard';
 import { Markdown } from './Markdown';
 import { Reasoning } from './blocks/Reasoning';
 import { ResultCard, type ResultContext, type ResultGroup } from './blocks/ResultCard';
@@ -22,6 +25,8 @@ export function UserMessage({ text }: { text: string }) {
 type Item =
   | { kind: 'text'; block: BlockOf<'text'> }
   | { kind: 'workflow'; block: BlockOf<'workflow'> }
+  | { kind: 'link'; block: BlockOf<'artifact_link'> }
+  | { kind: 'proposal'; block: BlockOf<'automation_proposal'> }
   | { kind: 'result'; group: ResultGroup }
   | { kind: 'error'; message: string };
 
@@ -52,6 +57,8 @@ function layout(blocks: ContentBlock[]) {
       const target = groups.get(b.toolUseId) ?? [...groups.values()].reverse().find((g) => g.tables.length);
       (target ?? group(b.toolUseId)).charts.push(b);
     } else if (b.type === 'workflow') items.push({ kind: 'workflow', block: b });
+    else if (b.type === 'artifact_link') items.push({ kind: 'link', block: b });
+    else if (b.type === 'automation_proposal') items.push({ kind: 'proposal', block: b });
     else if (b.type === 'error') items.push({ kind: 'error', message: b.message });
   }
   return { steps, thinking, items };
@@ -81,6 +88,21 @@ export function AssistantMessage({
             <Markdown text={it.block.text} caret={streaming && it === lastText} />
             {!!it.block.annotations?.length && <Citations annotations={it.block.annotations} />}
           </div>
+        ) : it.kind === 'proposal' ? (
+          <AutomationProposalCard key={`proposal-${i}`} proposal={it.block.proposal} />
+        ) : it.kind === 'link' ? (
+          <Link
+            key={`link-${i}`}
+            href={`/artifacts/${it.block.artifactId}`}
+            className="my-3 flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 hover:border-ink-3"
+          >
+            <FileText className="h-5 w-5 text-accent" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">{it.block.title}</div>
+              <div className="text-xs text-ink-3">Saved as a {it.block.kind}: open it to see every finding, chart and source, refresh the data, or export it</div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-ink-3" />
+          </Link>
         ) : it.kind === 'workflow' ? (
           <WorkflowTrace key={`wf-${i}`} steps={it.block.steps} streaming={streaming} ctx={ctx} />
         ) : it.kind === 'result' ? (
@@ -98,7 +120,7 @@ export function AssistantMessage({
           <Sparkle className="h-3 w-3" /> Memory updated: {memorySaved.join('; ')}
         </Link>
       )}
-      {!streaming && ctx.messageId && <Actions blocks={blocks} messageId={ctx.messageId} initial={feedback ?? null} />}
+      {!streaming && ctx.messageId && <Actions blocks={blocks} messageId={ctx.messageId} initial={feedback ?? null} ctx={ctx} />}
     </div>
   );
 }
@@ -125,9 +147,28 @@ function Citations({ annotations }: { annotations: NonNullable<BlockOf<'text'>['
   );
 }
 
-function Actions({ blocks, messageId, initial }: { blocks: ContentBlock[]; messageId: string; initial: 'up' | 'down' | null }) {
+/** Pre-fills an automation that re-runs the question behind this answer. */
+function automationDraft(blocks: ContentBlock[], ctx: ResultContext): Partial<Automation> {
+  const research = blocks.some((b) => (b.type === 'workflow' && b.steps.some((s) => s.kind === 'research')) || (b.type === 'artifact_link' && b.kind === 'report'));
+  const agentId = ctx.agentId ?? AUTO_AGENT_ID;
+  const kind = research ? 'research' : isWorkflowAgentId(agentId) ? 'workflow' : 'agent';
+  const q = ctx.question ?? '';
+  return {
+    name: q.length > 48 ? `${q.slice(0, 45)}…` : q,
+    prompt: q,
+    target: { kind, agentId: research && isWorkflowAgentId(agentId) ? AUTO_AGENT_ID : agentId },
+    schedule: { cron: '0 9 * * 1-5', timezone: 'Asia/Kolkata' },
+    enabled: true,
+  };
+}
+
+function Actions({ blocks, messageId, initial, ctx }: { blocks: ContentBlock[]; messageId: string; initial: 'up' | 'down' | null; ctx: ResultContext }) {
   const [fb, setFb] = useState(initial);
   const [copied, setCopied] = useState(false);
+  const [automating, setAutomating] = useState(false);
+  const [scheduled, setScheduled] = useState(false);
+  const { data: agents = [] } = useAgents();
+  const canAutomate = !!ctx.question && !blocks.some((b) => b.type === 'automation_proposal');
   const vote = async (v: 'up' | 'down') => {
     const next = fb === v ? null : v;
     setFb(next);
@@ -151,6 +192,14 @@ function Actions({ blocks, messageId, initial }: { blocks: ContentBlock[]; messa
       <IconButton label="Bad response" onClick={() => vote('down')} className={fb === 'down' ? 'text-accent' : ''}>
         <ThumbsDown className="h-3.5 w-3.5" />
       </IconButton>
+      {canAutomate && (
+        <IconButton label={scheduled ? 'Automation created' : 'Automate this'} onClick={() => setAutomating(true)} className={scheduled ? 'text-accent' : ''}>
+          <CalendarPlus className="h-3.5 w-3.5" />
+        </IconButton>
+      )}
+      {automating && (
+        <AutomationEditor initial={automationDraft(blocks, ctx)} agents={agents} onClose={() => setAutomating(false)} onSaved={() => setScheduled(true)} />
+      )}
     </div>
   );
 }

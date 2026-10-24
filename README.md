@@ -1,8 +1,11 @@
-# CoWork: a Snowflake CoWork-style app on Cortex Agents
+# Flurry: a Snowflake CoWork-style app on Cortex Agents
+
+> *A flurry of Snowflake agents, one answer.* (The repo and Snowflake objects keep the original `cowork` names.)
 
 Chat with your Snowflake data through Cortex Agents, with streamed reasoning, SQL, tables and **charts** (including charts the
-agent didn't draw), saved artifacts with live refresh, user memory, `/skills` and chat history. Built with Next.js +
-NestJS and deployed on Snowpark Container Services.
+agent didn't draw), saved artifacts with live refresh, user memory, `/skills` and chat history. Combine agents into
+**workflows**, run **deep research** with cited reports, build **dashboards**, schedule **automations** with email, and
+export to **PDF / PowerPoint**. Built with Next.js + NestJS and deployed on Snowpark Container Services.
 
 **Live:** https://eaptzc-lbxplby-jj73300.snowflakecomputing.app · **Docs:** [docs/](docs/README.md)
 
@@ -43,6 +46,7 @@ docs/            documentation
 4. [SPCS deployment](docs/04-spcs-deployment.md): build, push, deploy, release
 5. [Operations](docs/05-operations.md): health checks, troubleshooting, security
 6. [Workflows](docs/06-workflows.md): combine Snowflake agents into one chatbot
+7. [Deep research, dashboards, automations, export](docs/07-research-dashboards-automations.md)
 
 ## Tests
 

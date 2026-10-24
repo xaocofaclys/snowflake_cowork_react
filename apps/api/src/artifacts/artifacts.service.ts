@@ -1,5 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { withTableData, type Artifact } from '@cowork/shared';
+import { buildChartSpec, withTableData, type Artifact, type TableData } from '@cowork/shared';
 import type { AuthContext } from '../auth/auth.types';
 import { CacheService } from '../common/cache.service';
 import { newId, nowIso } from '../common/ids';
@@ -10,7 +10,20 @@ import { DocStore } from '../store/doc-store';
 
 export type CreateArtifact = Pick<
   Artifact,
-  'type' | 'title' | 'description' | 'spec' | 'table' | 'text' | 'sql' | 'queryId' | 'agentId' | 'threadId' | 'messageId'
+  | 'type'
+  | 'title'
+  | 'description'
+  | 'spec'
+  | 'table'
+  | 'text'
+  | 'blocks'
+  | 'findings'
+  | 'question'
+  | 'sql'
+  | 'queryId'
+  | 'agentId'
+  | 'threadId'
+  | 'messageId'
 >;
 
 /**
@@ -26,19 +39,27 @@ export class ArtifactsService {
     private readonly cache: CacheService,
   ) {}
 
-  async create(auth: AuthContext, b: CreateArtifact): Promise<Artifact> {
+  create(auth: AuthContext, b: CreateArtifact): Promise<Artifact> {
+    return this.createFor(auth.user.id, b);
+  }
+
+  /** Also used by deep research and automations, which save artifacts without a request context. */
+  async createFor(userId: string, b: CreateArtifact): Promise<Artifact> {
     if (!b.title?.trim()) throw new BadRequestException('title is required');
-    if (!['chart', 'table', 'answer'].includes(b.type)) throw new BadRequestException('bad type');
+    if (!['chart', 'table', 'answer', 'report'].includes(b.type)) throw new BadRequestException('bad type');
     const now = nowIso();
     const a: Artifact = {
       id: newId('art'),
-      userId: auth.user.id,
+      userId,
       type: b.type,
       title: b.title.trim().slice(0, 200),
       description: b.description,
       spec: b.spec,
       table: b.table,
       text: b.text,
+      blocks: b.blocks,
+      findings: b.findings,
+      question: b.question,
       sql: b.sql,
       queryId: b.queryId,
       agentId: b.agentId,
@@ -74,22 +95,45 @@ export class ArtifactsService {
     });
   }
 
+  /** Re-runs the SQL behind every finding of a report; the written text stays as it was. */
+  private async refreshReport(auth: AuthContext, a: Artifact, force: boolean): Promise<Artifact> {
+    const findings = await Promise.all(
+      (a.findings ?? []).map(async (f) => {
+        if (!f.sql || !f.table) return f;
+        try {
+          const table = await this.rerun(auth, `art:${a.id}:${f.n}:${auth.user.id}`, f.sql, f.table, force);
+          const spec = f.spec ? withTableData(f.spec, table) : (buildChartSpec(table) ?? undefined);
+          return { ...f, table, spec };
+        } catch (e) {
+          return { ...f, error: (e as Error).message };
+        }
+      }),
+    );
+    const refreshed: Artifact = { ...a, findings, refreshedAt: nowIso() };
+    if (a.userId === auth.user.id) await this.store.put('ARTIFACTS', { ...refreshed, updatedAt: nowIso() });
+    return refreshed;
+  }
+
   async remove(auth: AuthContext, id: string) {
     const a = await this.get(auth, id);
     if (a.userId !== auth.user.id) throw new ForbiddenException();
     await this.store.delete('ARTIFACTS', id);
   }
 
-  async refresh(auth: AuthContext, id: string, force = false): Promise<Artifact> {
-    const a = await this.get(auth, id);
-    if (!a.sql || !a.table) throw new BadRequestException('This artifact has no query to refresh');
-    const key = `art:${id}:${auth.user.id}`;
+  private async rerun(auth: AuthContext, key: string, sql: string, prev: TableData, force: boolean): Promise<TableData> {
     if (force) await this.cache.del(key);
-    const table = await this.cache.wrap(key, env.ARTIFACT_CACHE_TTL, async () => {
-      if (env.CORTEX_MOCK || !auth.cred) return { columns: a.table!.columns, rows: mockRerun(a.table!.columns, a.table!.rows) };
-      const r = await this.sf.sql(a.sql!, [], auth.cred, { timeoutSeconds: 300 });
+    return this.cache.wrap(key, env.ARTIFACT_CACHE_TTL, async () => {
+      if (env.CORTEX_MOCK || !auth.cred) return { columns: prev.columns, rows: mockRerun(prev.columns, prev.rows) };
+      const r = await this.sf.sql(sql, [], auth.cred, { timeoutSeconds: 300 });
       return { columns: r.columns, rows: r.rows };
     });
+  }
+
+  async refresh(auth: AuthContext, id: string, force = false): Promise<Artifact> {
+    const a = await this.get(auth, id);
+    if (a.type === 'report') return this.refreshReport(auth, a, force);
+    if (!a.sql || !a.table) throw new BadRequestException('This artifact has no query to refresh');
+    const table = await this.rerun(auth, `art:${id}:${auth.user.id}`, a.sql, a.table, force);
     const refreshed: Artifact = {
       ...a,
       table,

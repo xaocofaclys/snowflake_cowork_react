@@ -13,6 +13,9 @@ export const COLLECTIONS = [
   'SKILLS',
   'SETTINGS',
   'WORKFLOWS',
+  'DASHBOARDS',
+  'AUTOMATIONS',
+  'AUTOMATION_RUNS',
   /** Single row ID='app': UPDATED_AT is the last time anyone used the app (read by the idle auto-suspend task). */
   'ACTIVITY',
 ] as const;

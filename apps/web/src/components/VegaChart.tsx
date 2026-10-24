@@ -24,7 +24,9 @@ export function VegaChart({ spec, onReady, height }: { spec: Record<string, unkn
       const { default: embed } = await import('vega-embed');
       if (cancelled || !ref.current) return;
       try {
-        const s = { ...spec, ...(height ? { height } : {}), config: { ...vegaConfig(dark), ...((spec.config as object) ?? {}) } };
+        // With an explicit height (tiles, modals) the whole chart, axes included, must fit inside it.
+        const sized = height ? { height, autosize: { type: 'fit', contains: 'padding' } } : {};
+        const s = { ...spec, ...sized, config: { ...vegaConfig(dark), ...((spec.config as object) ?? {}) } };
         const result = await embed(ref.current, s as never, { actions: false, renderer: 'svg', tooltip: { theme: dark ? 'dark' : 'light' } });
         view = result.view as never;
         setError(undefined);

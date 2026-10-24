@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AgentInfo, Artifact, Me, Memory, Message, Skill, Thread, UserSettings, Workflow } from '@cowork/shared';
+import type { AgentInfo, Artifact, Automation, AutomationRun, Dashboard, Me, Memory, Message, Skill, Thread, UserSettings, Workflow } from '@cowork/shared';
 import { api } from './api';
 
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/auth/me'), retry: false });
@@ -47,3 +47,14 @@ export const useWorkflows = () => useQuery({ queryKey: ['workflows'], queryFn: (
 
 export const useWorkflow = (id: string) =>
   useQuery({ queryKey: ['workflow', id], queryFn: () => api<Workflow>(`/workflows/${id}`) });
+
+export const useDashboards = () => useQuery({ queryKey: ['dashboards'], queryFn: () => api<Dashboard[]>('/dashboards') });
+
+export const useDashboard = (id: string) =>
+  useQuery({ queryKey: ['dashboard', id], queryFn: () => api<{ dashboard: Dashboard; artifacts: Artifact[] }>(`/dashboards/${id}`) });
+
+export const useAutomations = () =>
+  useQuery({ queryKey: ['automations'], queryFn: () => api<Automation[]>('/automations'), refetchInterval: 30_000 });
+
+export const useAutomationRuns = (id?: string) =>
+  useQuery({ queryKey: ['automation-runs', id], queryFn: () => api<AutomationRun[]>(`/automations/${id}/runs`), enabled: !!id, refetchInterval: 15_000 });

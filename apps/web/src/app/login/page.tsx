@@ -1,6 +1,7 @@
 'use client';
 
 import { Snowflake } from 'lucide-react';
+import { APP_NAME, APP_TAGLINE } from '@cowork/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { Button, inputCls } from '@/components/ui';
@@ -21,8 +22,8 @@ function Login() {
       <div className="w-full max-w-sm rounded-2xl border border-line bg-bg p-8 shadow-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <Snowflake className="h-9 w-9 text-accent" />
-          <h1 className="text-xl font-semibold">Sign in to CoWork</h1>
-          <p className="text-sm text-ink-3">Your AI work agent on Snowflake</p>
+          <h1 className="text-xl font-semibold">Sign in to {APP_NAME}</h1>
+          <p className="text-sm text-ink-3">{APP_TAGLINE}</p>
         </div>
         {error && <p className="mb-4 rounded-lg bg-danger/10 px-3 py-2 text-xs text-danger">Sign-in failed: {error}</p>}
         {!cfg && <p className="text-center text-sm text-ink-3">Connecting to API at {API_URL}…</p>}

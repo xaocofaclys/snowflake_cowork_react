@@ -83,3 +83,13 @@ body {
 
 @keyframes blink { 50% { opacity: 0; } }
 .caret::after { content: '▍'; animation: blink 1s steps(1) infinite; color: var(--ink-3); margin-left: 1px; }
+
+/* Export to PDF via the browser's print dialog: hide app chrome, let content flow across pages. */
+@media print {
+  .no-print { display: none !important; }
+  html, body, .h-screen, .h-full { height: auto !important; }
+  .overflow-hidden, .overflow-y-auto, .overflow-auto { overflow: visible !important; }
+  .print-break { break-before: page; }
+  .print-avoid { break-inside: avoid; }
+  body { background: #fff !important; }
+}

@@ -1,3 +1,4 @@
+import type { AutomationProposal } from './models';
 /**
  * Normalized stream events. The API converts raw Cortex Agents SSE events
  * (response.text.delta, response.chart, response.table, ...) into these and
@@ -86,6 +87,10 @@ export type StreamEvent =
   /** App-level events */
   | { type: 'thread'; threadId: string; title?: string }
   | { type: 'memory'; saved: string[] }
+  /** A deliverable was saved (e.g. a deep-research report). */
+  | { type: 'artifact'; artifactId: string; title: string; kind: string }
+  /** The user asked (in chat) to schedule something: a confirmation card, nothing created yet. */
+  | { type: 'automation_proposal'; proposal: AutomationProposal }
   | { type: 'done'; messageId: string };
 
 export type StreamEventType = StreamEvent['type'];

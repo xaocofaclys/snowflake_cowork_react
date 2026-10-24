@@ -1,17 +1,22 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Database, MessageSquare, RefreshCw, Share2, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Database, FileDown, LayoutDashboard, MessageSquare, Presentation, RefreshCw, Share2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
-import type { Artifact } from '@cowork/shared';
+import { AUTO_AGENT_ID, type Artifact } from '@cowork/shared';
+import { AddToDashboard } from '@/components/AddToDashboard';
+import { AutomationEditor } from '@/components/AutomationEditor';
 import { DataTable } from '@/components/DataTable';
+import { AssistantMessage } from '@/components/Message';
+import { ReportView } from '@/components/ReportView';
 import { Markdown } from '@/components/Markdown';
 import { Button, Modal, Spinner, inputCls } from '@/components/ui';
 import { VegaChart } from '@/components/VegaChart';
 import { api } from '@/lib/api';
-import { useArtifact, useMe } from '@/lib/hooks';
+import { exportArtifactPptx, exportPdf } from '@/lib/export';
+import { useAgents, useArtifact, useMe } from '@/lib/hooks';
 
 export default function ArtifactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -23,6 +28,10 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
   const [refreshError, setRefreshError] = useState<string>();
   const [showSql, setShowSql] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [automating, setAutomating] = useState(false);
+  const { data: agents = [] } = useAgents();
+  const [exporting, setExporting] = useState(false);
 
   if (isLoading) return <Spinner className="mx-auto mt-20" />;
   if (error || !a) return <p className="p-8 text-sm text-danger">{(error as Error)?.message ?? 'Not found'}</p>;
@@ -45,7 +54,7 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-5xl px-6 py-6">
-        <Link href="/artifacts" className="inline-flex items-center gap-1 text-xs text-ink-3 hover:text-ink">
+        <Link href="/artifacts" className="no-print inline-flex items-center gap-1 text-xs text-ink-3 hover:text-ink">
           <ArrowLeft className="h-3.5 w-3.5" /> Artifacts
         </Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
@@ -57,8 +66,8 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
               {a.agentId && <> · {a.agentId}</>}
             </p>
           </div>
-          <div className="flex gap-2">
-            {a.sql && (
+          <div className="no-print flex flex-wrap gap-2">
+            {(a.sql || a.type === 'report') && (
               <Button onClick={refresh} disabled={refreshing}>
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
               </Button>
@@ -68,6 +77,33 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
                 <Database className="h-3.5 w-3.5" /> SQL
               </Button>
             )}
+            {(a.type === 'chart' || a.type === 'table') && owner && (
+              <Button variant="ghost" onClick={() => setAdding(true)}>
+                <LayoutDashboard className="h-3.5 w-3.5" /> Add to dashboard
+              </Button>
+            )}
+            {(a.type === 'report' || a.type === 'answer') && a.question && (
+              <Button variant="ghost" onClick={() => setAutomating(true)}>
+                <CalendarPlus className="h-3.5 w-3.5" /> Automate
+              </Button>
+            )}
+            <Button variant="ghost" onClick={exportPdf} title="Opens the print dialog: choose Save as PDF">
+              <FileDown className="h-3.5 w-3.5" /> PDF
+            </Button>
+            <Button
+              variant="ghost"
+              disabled={exporting}
+              onClick={async () => {
+                setExporting(true);
+                try {
+                  await exportArtifactPptx(a);
+                } finally {
+                  setExporting(false);
+                }
+              }}
+            >
+              <Presentation className="h-3.5 w-3.5" /> {exporting ? 'Building…' : 'PowerPoint'}
+            </Button>
             {a.threadId && owner && (
               <Button variant="ghost" onClick={() => router.push(`/c/${a.threadId}`)}>
                 <MessageSquare className="h-3.5 w-3.5" /> Chat
@@ -100,14 +136,31 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
               <VegaChart spec={a.spec} height={420} />
             </div>
           )}
-          {a.text && <Markdown text={a.text} />}
-          {a.table && <DataTable table={a.table} maxHeight={480} />}
+          {a.type === 'report' && <ReportView artifact={a} />}
+          {a.type === 'answer' && a.blocks && <AssistantMessage blocks={a.blocks} ctx={{ agentId: a.agentId, question: a.question }} />}
+          {a.type === 'answer' && !a.blocks && a.text && <Markdown text={a.text} />}
+          {(a.type === 'chart' || a.type === 'table') && a.table && <DataTable table={a.table} maxHeight={480} />}
         </div>
       </div>
       <Modal open={showSql} onClose={() => setShowSql(false)} title="SQL" wide>
         <pre className="max-h-[60vh] overflow-auto rounded-lg bg-raised p-3 font-mono text-xs">{a.sql}</pre>
       </Modal>
       {sharing && <ShareDialog artifact={a} onClose={() => setSharing(false)} />}
+      {adding && <AddToDashboard artifactId={a.id} onClose={() => setAdding(false)} />}
+      {automating && (
+        <AutomationEditor
+          initial={{
+            name: a.title.split(' · ')[0].slice(0, 80),
+            prompt: a.question,
+            target: { kind: a.type === 'report' ? 'research' : 'agent', agentId: a.agentId ?? AUTO_AGENT_ID },
+            schedule: { cron: '0 9 * * 1', timezone: 'Asia/Kolkata' },
+            enabled: true,
+          }}
+          agents={agents}
+          onClose={() => setAutomating(false)}
+          onSaved={() => setAutomating(false)}
+        />
+      )}
     </div>
   );
 }

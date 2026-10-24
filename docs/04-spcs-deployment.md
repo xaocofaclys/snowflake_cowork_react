@@ -149,6 +149,7 @@ the service on purpose:
 | 09:00 IST, Mon–Fri | Task `COWORK_START_WEEKDAYS` → `START_COWORK()` resumes the pool and service |
 | 09:00–20:00 IST, Mon–Fri | Stays up (instant for users) |
 | Any other time, every 15 min | Task `COWORK_IDLE_STOP` → `COWORK_IDLE_CHECK(60)`: if nobody used the app for 60 min, `STOP_COWORK()` suspends the service, then the pool (`AUTO_SUSPEND_SECS=300` as a backstop) |
+| Automations, every 15 min | Same task: **starts** the app if an automation is due within 20 min, and **won't stop** it while a run is in progress or due within 30 min ([§7.4](07-research-dashboards-automations.md#74-automations)) |
 | Whenever needed | Anyone with `COWORK_USER`: `CALL COWORK_APP.SPCS.START_COWORK();` in a Snowsight worksheet. Ready in about 3–5 min |
 
 "Used" means any authenticated request. The API updates `COWORK_APP.CORE.ACTIVITY` (row `ID='app'`) at most every 5 minutes,

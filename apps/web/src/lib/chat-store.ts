@@ -22,6 +22,7 @@ interface ChatState {
     threadId?: string;
     agentId: string;
     text: string;
+    mode?: 'chat' | 'research';
     onThread?: (id: string) => void;
     onDone?: (threadId: string) => void;
   }) => Promise<void>;
@@ -35,7 +36,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   live: {},
   aborts: {},
 
-  async send({ threadId, agentId, text, onThread, onDone }) {
+  async send({ threadId, agentId, text, mode, onThread, onDone }) {
     let key = threadId ?? 'new';
     const abort = new AbortController();
     const builder = new BlockBuilder();
@@ -55,7 +56,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     try {
       await streamChat(
-        { threadId, agentId, text },
+        { threadId, agentId, text, mode },
         (ev) => {
           if (ev.type === 'thread' && key === 'new') {
             const turn = get().live.new;

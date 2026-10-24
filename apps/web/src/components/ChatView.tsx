@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { blocksToText } from '@cowork/shared';
+import { AUTO_AGENT_ID, blocksToText } from '@cowork/shared';
 import { useChatStore } from '@/lib/chat-store';
 import { useAgents, useMe, useSkills, useThread } from '@/lib/hooks';
 import { AgentPicker } from './AgentPicker';
@@ -28,6 +28,7 @@ export function ChatView({ threadId }: { threadId?: string }) {
   const live = useChatStore((s) => s.live[threadId ?? 'new']);
   const { send, stop } = useChatStore.getState();
   const [picked, setPicked] = useState<string>();
+  const [research, setResearch] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -38,13 +39,21 @@ export function ChatView({ threadId }: { threadId?: string }) {
     if (fromUrl) setPicked(fromUrl);
   }, []);
 
-  const agentId = data?.thread.agentId ?? picked ?? me?.settings.defaultAgentId ?? agents[0]?.id;
+  const realAgents = agents.filter((a) => a.kind === 'agent');
+  const agentId =
+    data?.thread.agentId ?? picked ?? me?.settings.defaultAgentId ?? (realAgents.length > 1 ? AUTO_AGENT_ID : agents[0]?.id);
   const agent = agents.find((a) => a.id === agentId);
   const messages = useMemo(() => data?.messages ?? [], [data]);
 
   // Once the persisted copy of the live turn has loaded, render that instead.
   // The live entry stays (until the next send) so its memory notice survives.
   const persisted = !!live?.messageId && messages.some((m) => m.id === live.messageId);
+  // While a turn is live, the saved copy of its question (stored before the answer) would show twice.
+  const shown = useMemo(() => {
+    if (!live || persisted) return messages;
+    const last = messages[messages.length - 1];
+    return last?.role === 'user' && blocksToText(last.content) === live.userText ? messages.slice(0, -1) : messages;
+  }, [messages, live, persisted]);
 
   // Follow the conversation as it grows (charts render async), unless the user scrolled up.
   useEffect(() => {
@@ -65,6 +74,7 @@ export function ChatView({ threadId }: { threadId?: string }) {
       threadId,
       agentId,
       text,
+      mode: research ? 'research' : 'chat',
       onThread: (id) => {
         router.replace(`/c/${id}`);
         qc.invalidateQueries({ queryKey: ['threads'] });
@@ -73,6 +83,7 @@ export function ChatView({ threadId }: { threadId?: string }) {
         qc.invalidateQueries({ queryKey: ['thread', id] });
         qc.invalidateQueries({ queryKey: ['threads'] });
         if (useChatStore.getState().live[id]?.memorySaved) qc.invalidateQueries({ queryKey: ['memories'] });
+        if (research) qc.invalidateQueries({ queryKey: ['artifacts'] });
       },
     });
   };
@@ -86,9 +97,23 @@ export function ChatView({ threadId }: { threadId?: string }) {
         <div className="w-full max-w-2xl">
           <h1 className="mb-1 text-center text-3xl font-semibold tracking-tight">{me ? greeting(me.user.displayName ?? me.user.name) : ' '}</h1>
           <p className="mb-8 text-center text-sm text-ink-3">
-            {agent ? `Ask ${agent.displayName} about your data` : 'Pick an agent to get started'}
+            {agentId === AUTO_AGENT_ID
+              ? 'Ask anything. The right agent is picked for each question'
+              : agent
+                ? `Ask ${agent.displayName} about your data`
+                : 'Pick an agent to get started'}
           </p>
-          <Composer onSend={onSend} onStop={() => undefined} streaming={false} skills={skills} left={picker} autoFocus />
+          <Composer
+            onSend={onSend}
+            onStop={() => undefined}
+            streaming={false}
+            skills={skills}
+            left={picker}
+            autoFocus
+            research={research}
+            onResearchChange={setResearch}
+            placeholder={research ? 'What should be researched?' : undefined}
+          />
           {!!agent?.sampleQuestions.length && (
             <div className="mt-6 grid gap-2 sm:grid-cols-2">
               {agent.sampleQuestions.slice(0, 4).map((q) => (
@@ -110,7 +135,7 @@ export function ChatView({ threadId }: { threadId?: string }) {
 
   const ctxFor = (messageId?: string, question?: string) => ({ threadId, messageId, agentId, question });
   const userTextBefore = (i: number) => {
-    for (let j = i - 1; j >= 0; j--) if (messages[j].role === 'user') return blocksToText(messages[j].content);
+    for (let j = i - 1; j >= 0; j--) if (shown[j].role === 'user') return blocksToText(shown[j].content);
     return undefined;
   };
 
@@ -130,7 +155,7 @@ export function ChatView({ threadId }: { threadId?: string }) {
               <Spinner />
             </div>
           )}
-          {messages.map((m, i) =>
+          {shown.map((m, i) =>
             m.role === 'user' ? (
               <UserMessage key={m.id} text={blocksToText(m.content)} />
             ) : (
@@ -164,7 +189,9 @@ export function ChatView({ threadId }: { threadId?: string }) {
           streaming={!!live?.streaming}
           skills={skills}
           left={picker}
-          placeholder="Ask a follow-up…"
+          placeholder={research ? 'What should be researched?' : 'Ask a follow-up…'}
+          research={research}
+          onResearchChange={setResearch}
         />
         <p className="mt-2 text-center text-[11px] text-ink-3">
           Answers are generated by Cortex Agents{me?.mode.cortexMock ? ' (mock mode)' : ''}. Check important results.

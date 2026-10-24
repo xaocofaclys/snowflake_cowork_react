@@ -1,14 +1,17 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { BlockBuilder, blocksToText, isWorkflowAgentId, type ContentBlock, type Message, type StreamEvent, type Thread } from '@cowork/shared';
+import { AUTO_AGENT_ID, BlockBuilder, blocksToText, isWorkflowAgentId, type ContentBlock, type Message, type StreamEvent, type Thread } from '@cowork/shared';
 import type { AuthContext } from '../auth/auth.types';
 import { SettingsService } from '../auth/settings.service';
 import { ChartService } from '../charts/chart.service';
 import { newId, nowIso } from '../common/ids';
 import { QueueService } from '../common/queue.service';
+import { AutomationIntentService } from '../automations/automation-intent';
+import { AgentRouter } from '../cortex/agent-router';
 import { CortexService } from '../cortex/cortex.service';
 import { LlmService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
+import { ResearchService } from '../research/research.service';
 import { DocStore } from '../store/doc-store';
 import { WorkflowsService } from '../workflows/workflows.service';
 
@@ -16,6 +19,8 @@ export interface StreamRequest {
   threadId?: string;
   agentId: string;
   text: string;
+  /** 'research' runs deep research for this turn instead of a single agent call. */
+  mode?: 'chat' | 'research';
 }
 
 const MEMORY_WAIT_MS = 10_000;
@@ -38,6 +43,9 @@ export class ChatService implements OnModuleInit {
     private readonly llm: LlmService,
     private readonly queue: QueueService,
     private readonly workflows: WorkflowsService,
+    private readonly research: ResearchService,
+    private readonly router: AgentRouter,
+    private readonly intent: AutomationIntentService,
   ) {}
 
   onModuleInit() {
@@ -127,32 +135,61 @@ export class ChatService implements OnModuleInit {
       );
 
       const isWorkflow = isWorkflowAgentId(thread.agentId);
-      if (isWorkflow) {
-        // Workflows compose agents; each node runs statelessly with the templated input.
-        const relay = (ev: StreamEvent) => {
-          builder.add(ev);
-          send(ev);
-        };
+      const isResearch = body.mode === 'research';
+      const isAuto = thread.agentId === AUTO_AGENT_ID;
+      const relay = (ev: StreamEvent) => {
+        builder.add(ev);
+        send(ev);
+      };
+      // "Send me this every Monday at 8am" → propose an automation instead of asking the agent.
+      const proposal = this.intent.looksLikeScheduling(body.text)
+        ? await this.intent.detect(body.text, { ...(await this.previousTurn(thread.id, body.text)), agentId: thread.agentId, research: isResearch }, auth.cred)
+        : null;
+      // Workflows, research and proposals skip chat memory, auto-charting of the turn and Cortex threads.
+      const composite = isWorkflow || isResearch || !!proposal;
+      if (proposal) {
+        relay({ type: 'text', index: 0, text: 'I can set this up as an automation. Check the details and confirm:' });
+        relay({ type: 'automation_proposal', proposal });
+      } else if (isResearch) {
+        await this.research.run({
+          userId,
+          cred: auth.cred,
+          question: body.text,
+          agentId: thread.agentId,
+          emit: relay,
+          signal: abort.signal,
+          autoChart: settings.autoChart,
+          threadId: thread.id,
+        });
+      } else if (isWorkflow) {
         await this.workflows.runForChat(auth, thread.agentId, body.text, relay, abort.signal, settings.autoChart);
       } else {
+        let agentId = thread.agentId;
+        if (isAuto) {
+          const agents = await this.cortex.listAgents(auth.cred, `${userId}:${auth.user.role ?? ''}`);
+          const picked = await this.router.pick(body.text, agents, auth.cred);
+          if (!picked) throw new Error('No agents are available');
+          agentId = picked.id;
+          relay({ type: 'status', status: 'routing', message: `Asking ${picked.displayName}` });
+        }
         const memories = settings.memoryEnabled ? await this.memory.retrieve(userId, body.text, auth.cred) : [];
         const agentText = this.memory.formatContext(memories) + body.text;
 
         for await (const ev of this.cortex.run(auth.cred, {
-          agentId: thread.agentId,
+          agentId,
           text: agentText,
-          threadId: thread.cortexThreadId,
+          // Auto mode may switch agents between turns, so it carries history itself.
+          threadId: isAuto ? undefined : thread.cortexThreadId,
           parentMessageId: thread.lastCortexMessageId ?? 0,
           history: prior,
           signal: abort.signal,
         })) {
-          builder.add(ev);
-          send(ev);
+          relay(ev);
         }
       }
 
       // The chart fix: if Cortex returned a table but no chart, synthesize one.
-      if (settings.autoChart && !isWorkflow) {
+      if (settings.autoChart && !composite) {
         for (const t of builder.tablesWithoutCharts()) {
           const spec = await this.charts.fallback(t.table, body.text, auth.cred);
           if (!spec) continue;
@@ -169,7 +206,7 @@ export class ChatService implements OnModuleInit {
       send({ type: 'done', messageId });
 
       if (isNew) await this.queue.enqueue('thread.title', { threadId: thread.id, text: body.text, cred: auth.cred });
-      if (settings.memoryEnabled && !isWorkflow) {
+      if (settings.memoryEnabled && !composite) {
         const saved = await Promise.race([
           this.memory.extract({ userId, threadId: thread.id, userText: body.text, assistantText: blocksToText(builder.blocks), cred: auth.cred }),
           new Promise<string[]>((r) => setTimeout(() => r([]), MEMORY_WAIT_MS)),
@@ -200,11 +237,24 @@ export class ChatService implements OnModuleInit {
       userId: auth.user.id,
       title: heuristicTitle(body.text),
       agentId: body.agentId,
-      cortexThreadId: isWorkflowAgentId(body.agentId) ? undefined : await this.cortex.createThread(auth.cred),
+      cortexThreadId:
+        isWorkflowAgentId(body.agentId) || body.agentId === AUTO_AGENT_ID ? undefined : await this.cortex.createThread(auth.cred),
       createdAt: now,
       updatedAt: now,
     };
     return this.store.insert('THREADS', thread);
+  }
+
+  /** The question before the current one, and whether its answer was a deep-research report. */
+  private async previousTurn(threadId: string, current: string): Promise<{ previousQuestion?: string; previousWasResearch?: boolean }> {
+    const msgs = await this.store.list<Message & { userId: string; updatedAt: string }>('MESSAGES', { parentId: threadId, order: 'asc', limit: 1000 });
+    const earlier = msgs.filter((m) => !(m.role === 'user' && blocksToText(m.content) === current && m === msgs[msgs.length - 1]));
+    const lastAssistant = [...earlier].reverse().find((m) => m.role === 'assistant');
+    const lastUser = [...earlier].reverse().find((m) => m.role === 'user');
+    return {
+      previousQuestion: lastUser ? blocksToText(lastUser.content) : undefined,
+      previousWasResearch: !!lastAssistant?.content.some((b) => b.type === 'artifact_link' && b.kind === 'report'),
+    };
   }
 
   /** Text-only history, used when Cortex threads aren't available. */

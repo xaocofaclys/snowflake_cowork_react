@@ -1,10 +1,11 @@
 -- =====================================================================================
--- 06_phase2.sql: Phase 2 (workflows, automatic agent access, auto start/stop on IST).
+-- 06_phase2.sql: Phase 2 + 3 (workflows, automatic agent access, deep research, dashboards,
+-- automations with email, auto start/stop on IST). Released together as image tag v3.
 -- Prereqs: 01, 02, 05 done; service running.
 --
 --   PART A  ACCOUNTADMIN       grants only an admin can make            (run in Snowsight)
 --   PART B  COWORK_APP_SERVICE procedures + tasks for start/stop       (Snowsight or snow CLI)
---   PART C  COWORK_APP_SERVICE deploy v2 images                        (after build_push.sh TAG=v2)
+--   PART C  COWORK_APP_SERVICE deploy v3 images                        (after build_push.sh TAG=v3)
 -- =====================================================================================
 
 -- -------------------------------------------------------------------------------------
@@ -39,6 +40,14 @@ GRANT OPERATE ON COMPUTE POOL COWORK_POOL TO ROLE COWORK_APP_SERVICE;
 -- Pool releases its node 5 min after the service stops (was 60).
 ALTER COMPUTE POOL COWORK_POOL SET AUTO_SUSPEND_SECS = 300;
 
+-- A5. Email for automations (SYSTEM$SEND_EMAIL). Snowflake delivers only to *verified* email
+--     addresses of users in this account (Snowsight → your profile → verify email).
+CREATE NOTIFICATION INTEGRATION IF NOT EXISTS COWORK_EMAIL
+  TYPE = EMAIL
+  ENABLED = TRUE
+  COMMENT = 'CoWork automation emails';
+GRANT USAGE ON INTEGRATION COWORK_EMAIL TO ROLE COWORK_APP_SERVICE;
+
 -- A4. (Later, optional) restrict workflow building to a role:
 --   CREATE ROLE IF NOT EXISTS COWORK_BUILDER;
 --   GRANT ROLE COWORK_BUILDER TO USER <builder_user>;
@@ -50,13 +59,22 @@ ALTER COMPUTE POOL COWORK_POOL SET AUTO_SUSPEND_SECS = 300;
 --   09:00 IST Mon–Fri   task starts the app
 --   working hours       stays up (09:00–20:00 IST, Mon–Fri)
 --   otherwise           every 15 min: stop if nobody used it for 60 min
+--   automations         every 15 min: start the app if a run is due within 20 min;
+--                       never stop it while a run is due within 30 min or still running
 --   any time            anyone with COWORK_USER can: CALL COWORK_APP.SPCS.START_COWORK();
 -- -------------------------------------------------------------------------------------
 USE ROLE COWORK_APP_SERVICE;
 USE WAREHOUSE COWORK_WH;
 
--- The API keeps this row's UPDATED_AT current while the app is used (created by the API on start).
+-- Tables the procedures read (the API creates them too; same shape as every app collection).
+-- ACTIVITY: row ID='app', UPDATED_AT = last use. AUTOMATIONS / AUTOMATION_RUNS: schedules and runs.
 CREATE TABLE IF NOT EXISTS COWORK_APP.CORE.ACTIVITY (
+  ID STRING PRIMARY KEY, USER_ID STRING, PARENT_ID STRING, DATA VARIANT,
+  CREATED_AT TIMESTAMP_NTZ DEFAULT SYSDATE(), UPDATED_AT TIMESTAMP_NTZ DEFAULT SYSDATE());
+CREATE TABLE IF NOT EXISTS COWORK_APP.CORE.AUTOMATIONS (
+  ID STRING PRIMARY KEY, USER_ID STRING, PARENT_ID STRING, DATA VARIANT,
+  CREATED_AT TIMESTAMP_NTZ DEFAULT SYSDATE(), UPDATED_AT TIMESTAMP_NTZ DEFAULT SYSDATE());
+CREATE TABLE IF NOT EXISTS COWORK_APP.CORE.AUTOMATION_RUNS (
   ID STRING PRIMARY KEY, USER_ID STRING, PARENT_ID STRING, DATA VARIANT,
   CREATED_AT TIMESTAMP_NTZ DEFAULT SYSDATE(), UPDATED_AT TIMESTAMP_NTZ DEFAULT SYSDATE());
 
@@ -113,16 +131,38 @@ DECLARE
   now_ist TIMESTAMP_NTZ;
   svc_status STRING;
   last_seen TIMESTAMP_NTZ;
+  due_20 NUMBER;
+  due_30 NUMBER;
+  running NUMBER;
 BEGIN
+  SHOW SERVICES LIKE 'COWORK_SERVICE' IN SCHEMA COWORK_APP.SPCS;
+  SELECT "status" INTO :svc_status FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
+
+  SELECT
+    COUNT_IF(TRY_TO_TIMESTAMP_NTZ(DATA:nextRunAt::STRING) <= DATEADD('minute', 20, SYSDATE())),
+    COUNT_IF(TRY_TO_TIMESTAMP_NTZ(DATA:nextRunAt::STRING) <= DATEADD('minute', 30, SYSDATE()))
+  INTO :due_20, :due_30
+  FROM COWORK_APP.CORE.AUTOMATIONS
+  WHERE DATA:enabled::BOOLEAN = TRUE;
+
+  -- Wake the app for an upcoming automation.
+  IF (svc_status IS DISTINCT FROM 'RUNNING') THEN
+    IF (due_20 > 0) THEN
+      CALL COWORK_APP.SPCS.START_COWORK();
+      RETURN 'started: automation due within 20 minutes';
+    END IF;
+    RETURN 'service is ' || COALESCE(svc_status, 'missing');
+  END IF;
+
   now_ist := CONVERT_TIMEZONE('Asia/Kolkata', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ;
   IF (DAYOFWEEKISO(now_ist) <= 5 AND HOUR(now_ist) >= 9 AND HOUR(now_ist) < 20) THEN
     RETURN 'working hours: keep running';
   END IF;
 
-  SHOW SERVICES LIKE 'COWORK_SERVICE' IN SCHEMA COWORK_APP.SPCS;
-  SELECT "status" INTO :svc_status FROM TABLE(RESULT_SCAN(LAST_QUERY_ID()));
-  IF (svc_status IS NULL OR svc_status <> 'RUNNING') THEN
-    RETURN 'service is ' || COALESCE(svc_status, 'missing');
+  SELECT COUNT(*) INTO :running FROM COWORK_APP.CORE.AUTOMATION_RUNS
+  WHERE DATA:status::STRING = 'running' AND CREATED_AT > DATEADD('hour', -2, SYSDATE());
+  IF (running > 0 OR due_30 > 0) THEN
+    RETURN 'automation running or due soon: keep running';
   END IF;
 
   SELECT MAX(UPDATED_AT) INTO :last_seen FROM COWORK_APP.CORE.ACTIVITY WHERE ID = 'app';
@@ -148,7 +188,7 @@ AS
 CREATE OR REPLACE TASK COWORK_APP.SPCS.COWORK_IDLE_STOP
   SCHEDULE = 'USING CRON */15 * * * * Asia/Kolkata'
   USER_TASK_MANAGED_INITIAL_WAREHOUSE_SIZE = 'XSMALL'
-  COMMENT = 'Outside 09:00-20:00 IST weekdays, stop CoWork after 60 idle minutes'
+  COMMENT = 'Wake CoWork for due automations; outside 09:00-20:00 IST weekdays stop it after 60 idle minutes'
 AS
   CALL COWORK_APP.SPCS.COWORK_IDLE_CHECK(60);
 
@@ -163,20 +203,20 @@ ALTER TASK COWORK_APP.SPCS.COWORK_IDLE_STOP RESUME;
 -- Pause automation: ALTER TASK COWORK_APP.SPCS.COWORK_IDLE_STOP SUSPEND; (same for START_WEEKDAYS)
 
 -- -------------------------------------------------------------------------------------
--- PART C: deploy v2 (after: TAG=v2 ./deploy/spcs/build_push.sh)
+-- PART C: deploy v3 (after: TAG=v3 ./deploy/spcs/build_push.sh)
 -- -------------------------------------------------------------------------------------
 USE ROLE COWORK_APP_SERVICE;
 ALTER SERVICE COWORK_APP.SPCS.COWORK_SERVICE FROM SPECIFICATION $$
 spec:
   containers:
   - name: router
-    image: /cowork_app/spcs/images/cowork-router:v2
+    image: /cowork_app/spcs/images/cowork-router:v3
     resources:
       requests: { cpu: 0.1, memory: 128M }
       limits: { cpu: 0.25, memory: 256M }
     readinessProbe: { port: 8080, path: /healthz }
   - name: web
-    image: /cowork_app/spcs/images/cowork-web:v2
+    image: /cowork_app/spcs/images/cowork-web:v3
     env:
       PORT: "3000"
       HOSTNAME: 0.0.0.0
@@ -185,7 +225,7 @@ spec:
       limits: { cpu: 1, memory: 1G }
     readinessProbe: { port: 3000, path: /login }
   - name: api
-    image: /cowork_app/spcs/images/cowork-api:v2
+    image: /cowork_app/spcs/images/cowork-api:v3
     env:
       PORT: "4000"
       AUTH_MODE: spcs
@@ -199,6 +239,9 @@ spec:
       LLM_MODEL: llama3.1-70b
       EMBED_MODEL: snowflake-arctic-embed-m-v1.5
       WORKFLOW_BUILDER_ROLE: ""
+      RESEARCH_MODEL: claude-sonnet-4-5
+      EMAIL_INTEGRATION: COWORK_EMAIL
+      APP_PUBLIC_URL: https://eaptzc-lbxplby-jj73300.snowflakecomputing.app
     resources:
       requests: { cpu: 0.5, memory: 1G }
       limits: { cpu: 1, memory: 2G }

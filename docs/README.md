@@ -8,6 +8,7 @@
 | 4 | [SPCS deployment](04-spcs-deployment.md) | Images, router, build and push, service spec, endpoint access, releases, cost |
 | 5 | [Operations](05-operations.md) | Health checks, logs, issues we hit and their fixes, security notes |
 | 6 | [Workflows](06-workflows.md) | Composing Snowflake agents: sequential, parallel, conditional (AI_CLASSIFY), builder permissions, automatic agent access |
+| 7 | [Deep research, dashboards, automations, export](07-research-dashboards-automations.md) | Cited multi-agent reports, Auto agent selection, dashboards, scheduled runs with email, PDF/PowerPoint |
 
 ## Current deployment
 
@@ -47,5 +48,6 @@
 
 | Phase | Items |
 |---|---|
-| **2** | ✅ Workflow playground + builder (sequential / parallel / conditional with AI_CLASSIFY), builder-role hook, automatic agent grants, IST auto start/stop. Next: deep research, dashboards from artifacts, richer sharing |
-| **3** | Automations (scheduled prompts and skills with email via `SYSTEM$SEND_EMAIL`), file upload (stage + `AI_PARSE_DOCUMENT`), PDF/PPTX export, maps (`response.map`), MCP connectors, caller's rights in SPCS, Redis container in the service |
+| **2** | ✅ Workflow playground + builder (sequential / parallel / conditional with AI_CLASSIFY), builder-role hook, automatic agent grants, IST auto start/stop |
+| **3** | ✅ Deep research (claude-sonnet-4-5), Auto agent selection, dashboards, automations with email, PDF/PowerPoint export. Released together with phase 2 as image tag `v3` |
+| **Next** | File upload as context (stage + `AI_PARSE_DOCUMENT`), caller's rights in SPCS, maps (`response.map`), MCP connectors, Redis container in the service, Snowflake Decision for conditions |

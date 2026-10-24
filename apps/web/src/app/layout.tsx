@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
+import { APP_NAME, APP_TAGLINE } from '@cowork/shared';
 import './globals.css';
 import { Providers } from './providers';
 
-export const metadata: Metadata = { title: 'CoWork', description: 'AI work agent on Snowflake Cortex Agents' };
+export const metadata: Metadata = { title: APP_NAME, description: `${APP_TAGLINE}: an AI work agent on Snowflake Cortex Agents` };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

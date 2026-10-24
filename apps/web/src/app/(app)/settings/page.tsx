@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Brain, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import type { Memory } from '@cowork/shared';
+import { APP_NAME } from '@cowork/shared';
 import { PageHeader } from '@/components/PageHeader';
 import { Button, IconButton, inputCls } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -62,7 +63,7 @@ export default function SettingsPage() {
           <Section title="Memory">
             <Toggle
               label="Use memory"
-              hint="CoWork remembers useful facts and preferences from your chats and uses them in future answers."
+              hint={`${APP_NAME} remembers useful facts and preferences from your chats and uses them in future answers.`}
               checked={s.memoryEnabled}
               onChange={(v) => update.mutate({ memoryEnabled: v })}
             />
@@ -92,7 +93,7 @@ function MemoryList() {
           refresh();
         }}
       >
-        <input className={inputCls} placeholder="Add something for CoWork to remember…" value={adding} onChange={(e) => setAdding(e.target.value)} />
+        <input className={inputCls} placeholder={`Add something for ${APP_NAME} to remember…`} value={adding} onChange={(e) => setAdding(e.target.value)} />
         <Button type="submit">
           <Plus className="h-4 w-4" /> Add
         </Button>
@@ -111,7 +112,7 @@ function MemoryList() {
         <button
           className="mt-3 text-xs text-danger hover:underline"
           onClick={async () => {
-            if (!confirm('Forget everything CoWork remembers about you?')) return;
+            if (!confirm(`Forget everything ${APP_NAME} remembers about you?`)) return;
             await api('/memories', { method: 'DELETE' });
             refresh();
           }}

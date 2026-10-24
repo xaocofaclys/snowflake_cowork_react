@@ -23,11 +23,11 @@ export class LlmService {
     return this.sf.hasServiceCredential() ? this.sf.serviceCredential() : user;
   }
 
-  async complete(prompt: string, user?: SfCredential): Promise<string | null> {
+  async complete(prompt: string, user?: SfCredential, model = env.LLM_MODEL): Promise<string | null> {
     const cred = this.cred(user);
-    if (!this.enabled || !cred || !SAFE_MODEL.test(env.LLM_MODEL)) return null;
+    if (!this.enabled || !cred || !SAFE_MODEL.test(model)) return null;
     try {
-      const r = await this.sf.sql(`SELECT SNOWFLAKE.CORTEX.COMPLETE('${env.LLM_MODEL}', ?)`, [prompt], cred);
+      const r = await this.sf.sql(`SELECT SNOWFLAKE.CORTEX.COMPLETE('${model}', ?)`, [prompt], cred, { timeoutSeconds: 600 });
       return String(r.rows[0]?.[0] ?? '');
     } catch (e) {
       this.log.warn(`COMPLETE failed: ${(e as Error).message}`);
@@ -36,8 +36,8 @@ export class LlmService {
   }
 
   /** Parses the first JSON object/array in a completion. */
-  async completeJson<T>(prompt: string, user?: SfCredential): Promise<T | null> {
-    const out = await this.complete(prompt, user);
+  async completeJson<T>(prompt: string, user?: SfCredential, model?: string): Promise<T | null> {
+    const out = await this.complete(prompt, user, model);
     if (!out) return null;
     const m = out.match(/[[{][\s\S]*[\]}]/);
     if (!m) return null;

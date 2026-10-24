@@ -67,6 +67,9 @@ Snowflake CLI), or create a programmatic access token in Snowsight (profile → 
 | OAuth (local) *invalid redirect URI* | Must exactly match `http://localhost:4000/auth/callback` |
 | OAuth (local) role not allowed | `COWORK_USER` isn't granted to the user, or you tried a blocked admin role |
 | Charts not shown, table only | Expected when the agent lacks `data_to_chart`. The app auto-charts (Settings → Auto-chart results). Add the tool to the agent for native charts |
+| Automation emails never arrive | Recipient's email isn't verified in Snowflake (profile → verify), the `COWORK_EMAIL` integration is missing, or `USAGE` on it isn't granted (06_phase2.sql A5). The run history shows "Saved, but the email failed: …" |
+| Automation shows **missed** | The app was down more than 6 h past the due time. Check `SHOW TASKS IN SCHEMA COWORK_APP.SPCS` (is `COWORK_IDLE_STOP` started?) and task history |
+| Deep research report is just a list of findings | `RESEARCH_MODEL` failed (see API logs for `COMPLETE failed`). Check model availability / cross-region setting |
 | Container restarting | `SYSTEM$GET_SERVICE_LOGS(..., 'api', 200)`. Usually an env validation message on the first lines |
 
 ## 5.3 Security notes

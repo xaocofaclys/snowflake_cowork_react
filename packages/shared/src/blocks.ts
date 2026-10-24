@@ -1,4 +1,5 @@
 import type { Annotation, StreamEvent, TableData } from './events';
+import type { AutomationProposal } from './models';
 
 /** Ordered content blocks that make up a persisted assistant message. */
 export type ContentBlock =
@@ -35,6 +36,8 @@ export type ContentBlock =
     }
   | { type: 'map'; id: string; toolUseId: string; spec: Record<string, unknown> }
   | { type: 'workflow'; steps: WorkflowStep[] }
+  | { type: 'artifact_link'; artifactId: string; title: string; kind: string }
+  | { type: 'automation_proposal'; proposal: AutomationProposal }
   | { type: 'error'; message: string };
 
 export interface WorkflowStep {
@@ -195,6 +198,12 @@ export class BlockBuilder {
         }
         break;
       }
+      case 'automation_proposal':
+        this.blocks.push({ type: 'automation_proposal', proposal: ev.proposal });
+        break;
+      case 'artifact':
+        this.blocks.push({ type: 'artifact_link', artifactId: ev.artifactId, title: ev.title, kind: ev.kind });
+        break;
       case 'error':
         this.blocks.push({ type: 'error', message: ev.message });
         break;

@@ -11,6 +11,9 @@ import { MemoryModule } from './memory/memory.module';
 import { SkillsModule } from './skills/skills.module';
 import { StoreModule } from './store/store.module';
 import { HealthController } from './health.controller';
+import { AutomationsModule } from './automations/automations.module';
+import { DashboardsModule } from './dashboards/dashboards.module';
+import { ResearchModule } from './research/research.module';
 import { WorkflowsModule } from './workflows/workflows.module';
 
 @Module({
@@ -27,6 +30,9 @@ import { WorkflowsModule } from './workflows/workflows.module';
     MemoryModule,
     SkillsModule,
     WorkflowsModule,
+    ResearchModule,
+    DashboardsModule,
+    AutomationsModule,
   ],
   controllers: [HealthController],
 })

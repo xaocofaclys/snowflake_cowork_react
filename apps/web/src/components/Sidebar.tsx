@@ -19,11 +19,13 @@ import {
   Trash2,
   Wand2,
   Workflow,
+  CalendarClock,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Thread } from '@cowork/shared';
+import { APP_NAME } from '@cowork/shared';
 import { api } from '@/lib/api';
 import { useMe, useThreads } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
@@ -57,16 +59,17 @@ export function Sidebar({ onCollapse }: { onCollapse: () => void }) {
   const nav = [
     { href: '/artifacts', label: 'Artifacts', icon: Bookmark },
     { href: '/workflows', label: 'Workflows', icon: Workflow },
+    { href: '/automations', label: 'Automations', icon: CalendarClock },
     { href: '/skills', label: 'Skills', icon: Wand2 },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-line bg-sidebar">
+    <aside className="no-print flex h-full w-64 shrink-0 flex-col border-r border-line bg-sidebar">
       <div className="flex items-center justify-between px-3 pb-2 pt-3">
         <Link href="/" className="flex items-center gap-2 px-1 text-sm font-semibold">
           <Snowflake className="h-5 w-5 text-accent" />
-          CoWork
+          {APP_NAME}
         </Link>
         <IconButton label="Collapse sidebar" onClick={onCollapse}>
           <PanelLeftClose className="h-4 w-4" />

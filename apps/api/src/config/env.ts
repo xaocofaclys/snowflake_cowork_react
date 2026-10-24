@@ -56,6 +56,12 @@ const schema = z.object({
   WORKFLOW_BUILDER_ROLE: z.string().default(''),
 
   LLM_MODEL: z.string().default('llama3.1-70b'),
+  /** Deep research planning and report writing. */
+  RESEARCH_MODEL: z.string().default('claude-sonnet-4-5'),
+  /** Public URL of the app, used for links in automation emails. */
+  APP_PUBLIC_URL: z.string().optional(),
+  /** Snowflake notification integration (TYPE=EMAIL) used by SYSTEM$SEND_EMAIL. */
+  EMAIL_INTEGRATION: z.string().default('COWORK_EMAIL'),
   EMBED_MODEL: z.string().default('snowflake-arctic-embed-m-v1.5'),
   ARTIFACT_CACHE_TTL: z.coerce.number().default(300),
 });

@@ -40,6 +40,7 @@ export function vegaConfig(dark: boolean) {
       labelFlush: true,
     },
     axisX: { grid: false },
+    axisBand: { labelAngle: 0, labelOverlap: 'greedy', labelLimit: 140 },
     axisY: { domain: false, ticks: false },
     // Compact numbers (2.6B, not 2.6G); scoped to quantitative axes so category labels stay intact.
     axisQuantitative: { labelExpr: "replace(format(datum.value, '~s'), 'G', 'B')" },
