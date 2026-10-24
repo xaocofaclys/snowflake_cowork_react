@@ -1,0 +1,12 @@
+# Never ship secrets or local state into images
+.env
+.env.*
+*.p8
+*.pub
+.data
+.git
+# Rebuilt inside the image
+**/node_modules
+**/dist
+**/.next
+**/*.tsbuildinfo

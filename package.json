@@ -1,0 +1,17 @@
+{
+  "name": "cowork",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "build:shared": "npm run build -w @cowork/shared",
+    "dev": "npm run build:shared && concurrently -n shared,api,web -c gray,blue,green \"npm run dev -w @cowork/shared\" \"npm run dev -w @cowork/api\" \"npm run dev -w @cowork/web\"",
+    "build": "npm run build:shared && npm run build -w @cowork/api && npm run build -w @cowork/web",
+    "test": "vitest run",
+    "typecheck": "npm run build:shared && tsc -p apps/api --noEmit && tsc -p apps/web --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
