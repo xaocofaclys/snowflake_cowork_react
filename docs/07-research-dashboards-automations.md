@@ -43,6 +43,34 @@ because the agent can change between turns; prior turns are sent as history inst
 - **Share** works like artifacts (usernames or everyone). Viewers only see tiles whose artifacts they can open.
 - Stored in `COWORK_APP.CORE.DASHBOARDS` (`items: [{artifactId, x, y, w, h}]`).
 
+## 7.3b Dashboards built from chat (Power BI style)
+
+Ask in chat, e.g. *"Build a dashboard for field-rep performance by region"*, or use **Artifacts → Dashboards → Build with Flurry**.
+
+```mermaid
+flowchart LR
+    R["Request in chat"] --> D["Design<br/>claude-sonnet-4-5<br/>KPIs · charts · filters · layout"]
+    D --> T1["KPI tile → agent<br/>monthly series + filter columns"]
+    D --> T2["Chart tile → agent<br/>grouped rows + filter columns"]
+    D --> T3["…"]
+    T1 --> S["Artifacts (type kpi / chart / table)<br/>table + SQL + resolved roles"]
+    T2 --> S
+    T3 --> S
+    S --> B["Dashboard<br/>filter bar · KPI row · charts"]
+```
+
+- **Design** (`DashboardBuilderService`): 3–5 KPI cards, 3–6 charts (line, area, bar, hbar, stacked, donut, scatter), at most one detail table, 1–3 filters (date and dimensions) and a layout (KPI row, then charts two per row). The selected agent scopes it: Auto may use several agents, a pinned agent is used for every tile.
+- **Data stays filterable:** each tile's agent question asks for the filter columns too (e.g. `MONTH`, `REGION`), and KPI questions ask for a 12-month series. Results are saved as artifacts with a `tile` config mapping columns to roles (`x`, `y`, `color`, time) and to filters (`resolveTile` in `packages/shared/src/dashboards.ts`).
+- **In the browser:**
+  - **Filter bar:** date presets (relative to the latest date in the data), dimension dropdowns, **Clear all**.
+  - **Cross-filtering:** click a bar or slice. Other tiles filter, and the clicked chart keeps all categories with the selection highlighted (Power BI behaviour). Click again or use the chip × to clear.
+  - **KPI cards:** value, change vs the previous period (or the equally long window before a date range) with ▲/▼ and text, plus a sparkline. Sums add up within a month and use the tile's aggregate (sum/mean) across months; percentages average.
+  - **Drill-down:** the table icon on a tile shows the filtered rows and SQL.
+  - Charts are rebuilt from the filtered rows (`buildTileSpec`), so totals always re-aggregate correctly. Time axes group by month.
+- **Editing in chat:** in the conversation that built it (or **Edit in chat** on the dashboard): *"add a chart of inquiries by product"*, *"make the trend a bar chart"*, *"remove the payer mix tile"*, *"rename the dashboard to …"*. Presentation changes are instant; new tiles query their agent.
+- **Refresh, share, PDF and PowerPoint** work as for other dashboards. PowerPoint uses the current filters: a **Key metrics** slide, then one slide per chart or table.
+- **Limits:** tiles can only show what the agents can answer (unbuildable tiles are listed in the chat reply). In-browser filtering suits aggregated results (hundreds to tens of thousands of rows per tile).
+
 ## 7.4 Automations
 
 **Automations** page → **New automation**: name, what runs (**Deep research**, **Agent** with Auto allowed, or a published

@@ -123,6 +123,10 @@ Users whose **default role** is `COWORK_USER` can now open the URL and log in wi
 
 ## 4.5 Releasing a new version
 
+> **Status (2026-10-24):** `v3` images (phase 2 + 3) are pushed. Going live = run `06_phase2.sql` **PART C** as
+> `COWORK_APP_SERVICE`. Auto start/stop (**PART B**) is intentionally postponed. Grants A1–A3 and A5 are done.
+
+
 ```bash
 TAG=v2 ./deploy/spcs/build_push.sh
 ```

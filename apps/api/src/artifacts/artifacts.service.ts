@@ -19,6 +19,8 @@ export type CreateArtifact = Pick<
   | 'blocks'
   | 'findings'
   | 'question'
+  | 'design'
+  | 'tile'
   | 'sql'
   | 'queryId'
   | 'agentId'
@@ -46,7 +48,7 @@ export class ArtifactsService {
   /** Also used by deep research and automations, which save artifacts without a request context. */
   async createFor(userId: string, b: CreateArtifact): Promise<Artifact> {
     if (!b.title?.trim()) throw new BadRequestException('title is required');
-    if (!['chart', 'table', 'answer', 'report'].includes(b.type)) throw new BadRequestException('bad type');
+    if (!['chart', 'table', 'answer', 'report', 'kpi'].includes(b.type)) throw new BadRequestException('bad type');
     const now = nowIso();
     const a: Artifact = {
       id: newId('art'),
@@ -60,6 +62,8 @@ export class ArtifactsService {
       blocks: b.blocks,
       findings: b.findings,
       question: b.question,
+      design: b.design,
+      tile: b.tile,
       sql: b.sql,
       queryId: b.queryId,
       agentId: b.agentId,

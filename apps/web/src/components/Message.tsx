@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, ArrowRight, BookMarked, CalendarPlus, Check, Copy, FileText, Sparkle, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BookMarked, CalendarPlus, Check, Copy, FileText, LayoutDashboard, Sparkle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { AUTO_AGENT_ID, blocksToText, isWorkflowAgentId, type Automation, type BlockOf, type ContentBlock } from '@cowork/shared';
@@ -93,13 +93,17 @@ export function AssistantMessage({
         ) : it.kind === 'link' ? (
           <Link
             key={`link-${i}`}
-            href={`/artifacts/${it.block.artifactId}`}
+            href={it.block.kind === 'dashboard' ? `/dashboards/${it.block.artifactId}` : `/artifacts/${it.block.artifactId}`}
             className="my-3 flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 hover:border-ink-3"
           >
-            <FileText className="h-5 w-5 text-accent" />
+            {it.block.kind === 'dashboard' ? <LayoutDashboard className="h-5 w-5 text-accent" /> : <FileText className="h-5 w-5 text-accent" />}
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{it.block.title}</div>
-              <div className="text-xs text-ink-3">Saved as a {it.block.kind}: open it to see every finding, chart and source, refresh the data, or export it</div>
+              <div className="text-xs text-ink-3">
+                {it.block.kind === 'dashboard'
+                  ? 'Open the dashboard: live data, filters, click any chart to cross-filter, export to PDF or PowerPoint'
+                  : `Saved as a ${it.block.kind}: open it to see every finding, chart and source, refresh the data, or export it`}
+              </div>
             </div>
             <ArrowRight className="h-4 w-4 text-ink-3" />
           </Link>

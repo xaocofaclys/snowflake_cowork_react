@@ -3,22 +3,23 @@
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, FileDown, GripVertical, Pencil, Presentation, RefreshCw, Share2, Trash2, X } from 'lucide-react';
+import { ArrowLeft, FileDown, GripVertical, MessageSquare, Pencil, Presentation, RefreshCw, Share2, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useEffect, useMemo, useState } from 'react';
 import RGL, { WidthProvider, type Layout } from 'react-grid-layout';
-import type { Artifact, Dashboard, DashboardItem } from '@cowork/shared';
-import { DataTable } from '@/components/DataTable';
-import { Markdown } from '@/components/Markdown';
+import type { ActiveFilters, Artifact, Dashboard, DashboardItem } from '@cowork/shared';
+import { FilterBar } from '@/components/dashboard/FilterBar';
+import { DetailsButton, TileBody } from '@/components/dashboard/Tiles';
 import { Button, Modal, Spinner, inputCls } from '@/components/ui';
-import { VegaChart } from '@/components/VegaChart';
 import { api } from '@/lib/api';
+import { filteredTable, type CrossFilter } from '@/lib/dashboard-filters';
 import { exportDashboardPptx, exportPdf } from '@/lib/export';
 import { useDashboard, useMe } from '@/lib/hooks';
 
 const Grid = WidthProvider(RGL);
 const ROW = 32;
+const MARGIN = 16;
 
 export default function DashboardPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -38,10 +39,22 @@ function DashboardView({ dashboard, initialArtifacts }: { dashboard: Dashboard; 
   const [title, setTitle] = useState(dashboard.title);
   const [editing, setEditing] = useState(false);
   const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
+  const [refreshedAt, setRefreshedAt] = useState<string>();
   const [sharing, setSharing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [active, setActive] = useState<ActiveFilters>({});
+  const [cross, setCross] = useState<CrossFilter[]>([]);
 
-  const layout: Layout[] = useMemo(() => items.map((i) => ({ i: i.artifactId, x: i.x, y: i.y, w: i.w, h: i.h, minW: 3, minH: 5 })), [items]);
+  const layout: Layout[] = useMemo(
+    () => items.map((i) => ({ i: i.artifactId, x: i.x, y: i.y, w: i.w, h: i.h, minW: artifacts[i.artifactId]?.type === 'kpi' ? 2 : 3, minH: artifacts[i.artifactId]?.type === 'kpi' ? 3 : 5 })),
+    [items, artifacts],
+  );
+  const filters = dashboard.filters ?? [];
+  const list = useMemo(() => items.map((i) => artifacts[i.artifactId]).filter(Boolean), [items, artifacts]);
+  // Each tile's rows after slicers and cross-filters, recomputed in the browser.
+  const dateKey = filters.find((f) => f.kind === 'date')?.key;
+  const tables = useMemo(() => Object.fromEntries(list.map((a) => [a.id, filteredTable(a, active, cross, dateKey)])), [list, active, cross, dateKey]);
+  const range = dateKey && active[dateKey] && 'from' in active[dateKey] ? (active[dateKey] as { from?: string; to?: string }) : undefined;
 
   const save = async (patch: Partial<Dashboard>) => {
     const d = await api<Dashboard>(`/dashboards/${dashboard.id}`, { method: 'PATCH', json: patch });
@@ -66,95 +79,131 @@ function DashboardView({ dashboard, initialArtifacts }: { dashboard: Dashboard; 
         }
       }),
     );
+    setRefreshedAt(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   };
 
-  // On open, load live data through the cache (ARTIFACT_CACHE_TTL); "Refresh all" forces fresh queries.
+  // On open, load live data through the cache (ARTIFACT_CACHE_TTL); "Refresh" forces fresh queries.
   useEffect(() => {
     refreshAll(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const crossFilter = (column: string, value: string, label: string) =>
+    setCross((cs) => {
+      const existing = cs.find((c) => c.column === column);
+      if (existing?.value === value) return cs.filter((c) => c.column !== column); // click again to clear
+      return [...cs.filter((c) => c.column !== column), { column, value, label }];
+    });
+
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-7xl px-6 py-6">
-        <Link href="/artifacts" className="no-print inline-flex items-center gap-1 text-xs text-ink-3 hover:text-ink">
-          <ArrowLeft className="h-3.5 w-3.5" /> Artifacts
-        </Link>
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          {editing ? (
-            <input className={`${inputCls} max-w-md text-lg font-semibold`} value={title} onChange={(e) => setTitle(e.target.value)} />
-          ) : (
-            <h1 className="text-xl font-semibold">{title}</h1>
-          )}
-          <div className="no-print ml-auto flex flex-wrap gap-2">
-            <Button onClick={() => refreshAll(true)} disabled={refreshing.size > 0}>
-              <RefreshCw className={`h-3.5 w-3.5 ${refreshing.size ? 'animate-spin' : ''}`} /> Refresh all
-            </Button>
-            {owner &&
-              (editing ? (
-                <Button
-                  variant="primary"
-                  onClick={async () => {
-                    await save({ title, items });
-                    setEditing(false);
-                  }}
-                >
-                  Done
-                </Button>
+    <div className="h-full overflow-y-auto bg-sidebar">
+      <div className="mx-auto max-w-[1400px] space-y-4 px-6 py-5">
+        {/* header */}
+        <div className="rounded-xl border border-line bg-panel px-5 py-4">
+          <Link href="/artifacts" className="no-print inline-flex items-center gap-1 text-xs text-ink-3 hover:text-ink">
+            <ArrowLeft className="h-3.5 w-3.5" /> Dashboards
+          </Link>
+          <div className="mt-2 flex flex-wrap items-start gap-3">
+            <div className="min-w-0 flex-1">
+              {editing ? (
+                <input className={`${inputCls} max-w-md text-lg font-semibold`} value={title} onChange={(e) => setTitle(e.target.value)} />
               ) : (
-                <Button variant="ghost" onClick={() => setEditing(true)}>
-                  <Pencil className="h-3.5 w-3.5" /> Edit
-                </Button>
-              ))}
-            {owner && (
-              <Button variant="ghost" onClick={() => setSharing(true)}>
-                <Share2 className="h-3.5 w-3.5" /> Share
+                <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+              )}
+              <p className="mt-0.5 text-xs text-ink-3">
+                {dashboard.description ? `${dashboard.description} · ` : ''}
+                {refreshing.size ? 'Refreshing…' : refreshedAt ? `Data refreshed ${refreshedAt}` : 'Live data from Snowflake'}
+              </p>
+            </div>
+            <div className="no-print flex flex-wrap gap-1.5">
+              <Button size="sm" onClick={() => refreshAll(true)} disabled={refreshing.size > 0}>
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing.size ? 'animate-spin' : ''}`} /> Refresh
               </Button>
-            )}
-            <Button variant="ghost" onClick={exportPdf}>
-              <FileDown className="h-3.5 w-3.5" /> PDF
-            </Button>
-            <Button
-              variant="ghost"
-              disabled={exporting}
-              onClick={async () => {
-                setExporting(true);
-                try {
-                  await exportDashboardPptx({ ...dashboard, title, items }, Object.values(artifacts));
-                } finally {
-                  setExporting(false);
-                }
-              }}
-            >
-              <Presentation className="h-3.5 w-3.5" /> {exporting ? 'Building…' : 'PowerPoint'}
-            </Button>
-            {owner && editing && (
+              {dashboard.threadId && owner && (
+                <Button size="sm" variant="ghost" onClick={() => router.push(`/c/${dashboard.threadId}`)} title="Ask for changes in the conversation that built this dashboard">
+                  <MessageSquare className="h-3.5 w-3.5" /> Edit in chat
+                </Button>
+              )}
+              {owner &&
+                (editing ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={async () => {
+                      await save({ title, items });
+                      setEditing(false);
+                    }}
+                  >
+                    Done
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
+                    <Pencil className="h-3.5 w-3.5" /> Layout
+                  </Button>
+                ))}
+              {owner && (
+                <Button size="sm" variant="ghost" onClick={() => setSharing(true)}>
+                  <Share2 className="h-3.5 w-3.5" /> Share
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={exportPdf}>
+                <FileDown className="h-3.5 w-3.5" /> PDF
+              </Button>
               <Button
+                size="sm"
                 variant="ghost"
-                className="text-danger"
+                disabled={exporting}
                 onClick={async () => {
-                  if (!confirm('Delete this dashboard? The artifacts stay.')) return;
-                  await api(`/dashboards/${dashboard.id}`, { method: 'DELETE' });
-                  qc.invalidateQueries({ queryKey: ['dashboards'] });
-                  router.push('/artifacts');
+                  setExporting(true);
+                  try {
+                    await exportDashboardPptx({ ...dashboard, title, items }, list, tables, range);
+                  } finally {
+                    setExporting(false);
+                  }
                 }}
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Presentation className="h-3.5 w-3.5" /> {exporting ? 'Building…' : 'PowerPoint'}
               </Button>
-            )}
+              {owner && editing && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-danger"
+                  onClick={async () => {
+                    if (!confirm('Delete this dashboard? Its tiles stay in Artifacts.')) return;
+                    await api(`/dashboards/${dashboard.id}`, { method: 'DELETE' });
+                    qc.invalidateQueries({ queryKey: ['dashboards'] });
+                    router.push('/artifacts');
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-        {editing && <p className="no-print mt-2 text-xs text-ink-3">Drag tiles by the handle, resize from the bottom-right corner, remove with ×. Click Done to save.</p>}
+
+        <FilterBar
+          filters={filters}
+          artifacts={list}
+          active={active}
+          cross={cross}
+          onChange={setActive}
+          onClearCross={(column) => setCross((cs) => (column ? cs.filter((c) => c.column !== column) : []))}
+        />
+        {editing && <p className="no-print text-xs text-ink-3">Drag tiles by the handle, resize from the bottom-right corner, remove with ×. Click Done to save.</p>}
 
         {!items.length ? (
-          <p className="mt-16 text-center text-sm text-ink-3">This dashboard is empty. Open a chart or table artifact and choose “Add to dashboard”.</p>
+          <p className="py-16 text-center text-sm text-ink-3">
+            This dashboard is empty. Ask in chat: “build a dashboard for …”, or add charts from Artifacts.
+          </p>
         ) : (
           <Grid
-            className="mt-4"
+            className="-mx-4"
             layout={layout}
             cols={12}
             rowHeight={ROW}
-            margin={[16, 16]}
+            margin={[MARGIN, MARGIN]}
             isDraggable={editing}
             isResizable={editing}
             draggableHandle=".tile-handle"
@@ -162,22 +211,39 @@ function DashboardView({ dashboard, initialArtifacts }: { dashboard: Dashboard; 
           >
             {items.map((item) => {
               const a = artifacts[item.artifactId];
+              const isKpi = a?.type === 'kpi';
+              const xLabel = a?.tile?.x ? (filters.find((f) => a.tile!.filterColumns[f.key] === a.tile!.x)?.label ?? a.tile.x) : '';
               return (
-                <div key={item.artifactId} className="print-avoid flex flex-col overflow-hidden rounded-xl border border-line bg-panel">
-                  <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-                    {editing && <GripVertical className="tile-handle h-4 w-4 cursor-grab text-ink-3" />}
-                    <Link href={`/artifacts/${item.artifactId}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:underline">
-                      {a?.title ?? 'Unavailable'}
-                    </Link>
-                    {refreshing.has(item.artifactId) && <Spinner className="h-3.5 w-3.5 text-ink-3" />}
-                    {editing && (
-                      <button aria-label="Remove tile" onClick={() => setItems((xs) => xs.filter((x) => x.artifactId !== item.artifactId))} className="text-ink-3 hover:text-danger">
-                        <X className="h-4 w-4" />
-                      </button>
+                <div key={item.artifactId} className="print-avoid flex flex-col overflow-hidden rounded-xl border border-line bg-panel shadow-sm">
+                  {!isKpi && (
+                    <div className="flex items-center gap-2 px-4 pb-1 pt-3">
+                      {editing && <GripVertical className="tile-handle h-4 w-4 cursor-grab text-ink-3" />}
+                      <Link href={`/artifacts/${item.artifactId}`} className="min-w-0 flex-1 truncate text-sm font-semibold hover:underline">
+                        {a?.title ?? 'Unavailable'}
+                      </Link>
+                      {refreshing.has(item.artifactId) && <Spinner className="h-3.5 w-3.5 text-ink-3" />}
+                      {a && <DetailsButton a={a} table={tables[a.id]} />}
+                      {editing && <RemoveTile onClick={() => setItems((xs) => xs.filter((x) => x.artifactId !== item.artifactId))} />}
+                    </div>
+                  )}
+                  {isKpi && editing && (
+                    <div className="flex items-center justify-between px-3 pt-2">
+                      <GripVertical className="tile-handle h-4 w-4 cursor-grab text-ink-3" />
+                      <RemoveTile onClick={() => setItems((xs) => xs.filter((x) => x.artifactId !== item.artifactId))} />
+                    </div>
+                  )}
+                  <div className={isKpi ? 'min-h-0 flex-1' : 'min-h-0 flex-1 overflow-auto px-3 pb-3'}>
+                    {a && (
+                      <TileBody
+                        a={a}
+                        table={tables[a.id]}
+                        range={range}
+                        height={item.h * ROW + (item.h - 1) * MARGIN - 44 - 16}
+                        selected={cross.find((c) => c.column === a.tile?.x)?.value}
+                        onSelect={editing ? undefined : (column, value) => crossFilter(column, value, xLabel)}
+                      />
                     )}
                   </div>
-                  {/* Tile height in react-grid-layout = rowHeight*h + margin*(h-1); minus header (~41px) and padding. */}
-                  <div className="min-h-0 flex-1 overflow-auto p-2">{a && <TileBody a={a} height={item.h * ROW + (item.h - 1) * 16 - 41 - 20} />}</div>
                 </div>
               );
             })}
@@ -189,10 +255,12 @@ function DashboardView({ dashboard, initialArtifacts }: { dashboard: Dashboard; 
   );
 }
 
-function TileBody({ a, height }: { a: Artifact; height: number }) {
-  if (a.type === 'chart' && a.spec) return <VegaChart spec={{ ...a.spec, title: undefined }} height={Math.max(120, height)} />;
-  if (a.table && a.type === 'table') return <DataTable table={a.table} maxHeight={Math.max(120, height - 24)} />;
-  return <Markdown text={(a.text ?? '').slice(0, 1500)} />;
+function RemoveTile({ onClick }: { onClick: () => void }) {
+  return (
+    <button aria-label="Remove tile" onClick={onClick} className="text-ink-3 hover:text-danger">
+      <X className="h-4 w-4" />
+    </button>
+  );
 }
 
 function ShareDashboard({ dashboard, onClose }: { dashboard: Dashboard; onClose: () => void }) {

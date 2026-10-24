@@ -30,6 +30,29 @@ function seeded(seed: number) {
 function scenario(question: string): Scenario | null {
   const q = question.toLowerCase();
   const rnd = seeded(q.length * 7 + 13);
+  // Dashboard-style questions: a monthly series split by region (filterable by both).
+  if (/month|trend|time series/.test(q) && /region/.test(q)) {
+    const rows: unknown[][] = [];
+    for (let m = 0; m < 12; m++) {
+      for (const [ri, r] of REGIONS.entries()) {
+        const base = 480_000_000 + ri * 40_000_000;
+        rows.push([`1997-${String(m + 1).padStart(2, '0')}-01`, r, Math.round(base + rnd() * 90_000_000 + Math.sin(m / 2 + ri) * 30_000_000), Math.round(7_000 + rnd() * 1_500)]);
+      }
+    }
+    return {
+      sql: `SELECT DATE_TRUNC('month', o_orderdate) AS order_month, r_name AS region,\n       SUM(l_extendedprice * (1 - l_discount)) AS revenue, COUNT(DISTINCT o_orderkey) AS orders\nFROM ... WHERE YEAR(o_orderdate) = 1997 GROUP BY 1, 2 ORDER BY 1, 2`,
+      explanation: 'Net revenue and order count per month and region for 1997.',
+      columns: [
+        { name: 'ORDER_MONTH', type: 'date' },
+        { name: 'REGION', type: 'text' },
+        { name: 'REVENUE', type: 'fixed' },
+        { name: 'ORDERS', type: 'fixed' },
+      ],
+      rows,
+      agentChart: false,
+      answer: 'Here is revenue and order volume by month and region for 1997.',
+    };
+  }
   if (/month|trend|over time|monthly/.test(q)) {
     const rows = Array.from({ length: 12 }, (_, m) => [
       `1997-${String(m + 1).padStart(2, '0')}-01`,

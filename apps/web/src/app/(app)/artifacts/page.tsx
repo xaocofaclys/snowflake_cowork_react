@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import clsx from 'clsx';
-import { BarChart3, Bookmark, FileText, LayoutDashboard, MessageSquareText, Plus, Table2 } from 'lucide-react';
+import { BarChart3, Bookmark, FileText, Gauge, LayoutDashboard, MessageSquareText, Plus, Table2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ import { VegaChart } from '@/components/VegaChart';
 import { api } from '@/lib/api';
 import { useArtifacts, useDashboards } from '@/lib/hooks';
 
-const ICON: Record<ArtifactType, typeof BarChart3> = { chart: BarChart3, table: Table2, answer: MessageSquareText, report: FileText };
+const ICON: Record<ArtifactType, typeof BarChart3> = { chart: BarChart3, table: Table2, answer: MessageSquareText, report: FileText, kpi: Gauge };
 const FILTERS: { key: 'all' | ArtifactType; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'report', label: 'Reports' },
@@ -121,16 +121,21 @@ function DashboardGrid() {
   };
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button variant="primary" onClick={create}>
-          <Plus className="h-4 w-4" /> New dashboard
+      <div className="mb-4 flex justify-end gap-2">
+        <Link href={`/?q=${encodeURIComponent('Build a dashboard for ')}`}>
+          <Button variant="primary">
+            <LayoutDashboard className="h-4 w-4" /> Build with Flurry
+          </Button>
+        </Link>
+        <Button onClick={create}>
+          <Plus className="h-4 w-4" /> Empty dashboard
         </Button>
       </div>
       {isLoading && <Spinner className="mx-auto mt-10" />}
       {!isLoading && !data.length && (
         <div className="mt-16 flex flex-col items-center gap-2 text-center text-ink-3">
           <LayoutDashboard className="h-8 w-8" />
-          <p className="text-sm">No dashboards yet. Open a chart or table artifact and choose “Add to dashboard”.</p>
+          <p className="text-sm">No dashboards yet. Click “Build with Flurry” and describe the metrics you want, e.g. “rep performance by region”.</p>
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

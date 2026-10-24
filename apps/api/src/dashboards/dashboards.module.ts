@@ -1,6 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
+import { DashboardBuilderService } from './dashboard-builder.service';
 import { DashboardsController } from './dashboards.controller';
 import { DashboardsService } from './dashboards.service';
 
-@Module({ controllers: [DashboardsController], providers: [DashboardsService] })
+@Global()
+@Module({ controllers: [DashboardsController], providers: [DashboardsService, DashboardBuilderService], exports: [DashboardBuilderService] })
 export class DashboardsModule {}

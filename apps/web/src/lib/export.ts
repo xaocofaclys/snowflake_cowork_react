@@ -1,6 +1,6 @@
 'use client';
 
-import { buildChartSpec, type Artifact, type Dashboard, type TableData } from '@cowork/shared';
+import { buildChartSpec, buildTileSpec, computeKpi, formatKpi, type Artifact, type Dashboard, type TableData } from '@cowork/shared';
 import { formatCell } from '@/components/DataTable';
 import { vegaConfig } from './vega-theme';
 
@@ -116,15 +116,42 @@ export async function exportArtifactPptx(a: Artifact) {
   await pptx.writeFile({ fileName: fileName(a.title) });
 }
 
-export async function exportDashboardPptx(d: Dashboard, artifacts: Artifact[]) {
+/** Slides follow the screen: KPI cards on one "Key metrics" slide, charts from the currently filtered rows. */
+export async function exportDashboardPptx(
+  d: Dashboard,
+  artifacts: Artifact[],
+  tables: Record<string, TableData | undefined> = {},
+  range?: { from?: string; to?: string },
+) {
   const byId = new Map(artifacts.map((a) => [a.id, a]));
-  const pptx = await newDeck(d.title, `Dashboard · ${today()}`);
-  const ordered = [...d.items].sort((x, y) => x.y - y.y || x.x - y.x);
-  for (const item of ordered) {
-    const a = byId.get(item.artifactId);
-    if (!a) continue;
-    if (a.spec) await addChartSlide(pptx, a.title, a.spec);
-    else if (a.table) addTableSlide(pptx, a.title, a.table);
+  const pptx = await newDeck(d.title, `${d.description ? `${d.description} · ` : ''}Dashboard · ${today()}`);
+  const ordered = [...d.items].sort((x, y) => x.y - y.y || x.x - y.x).map((i) => byId.get(i.artifactId)).filter((a): a is Artifact => !!a);
+
+  const kpis = ordered.filter((a) => a.type === 'kpi' && a.tile);
+  if (kpis.length) {
+    const s = pptx.addSlide();
+    s.addText('Key metrics', { x: 0.6, y: 0.4, w: 12, h: 0.8, fontSize: 26, bold: true, color: INK, fontFace: 'Arial' });
+    const per = Math.min(kpis.length, 4);
+    const w = 12.1 / per - 0.2;
+    kpis.forEach((a, i) => {
+      const k = computeKpi(tables[a.id] ?? a.table!, a.tile!, range);
+      const x = 0.6 + (i % per) * (w + 0.2);
+      const y = 1.5 + Math.floor(i / per) * 2.4;
+      s.addShape(pptx.ShapeType.roundRect, { x, y, w, h: 2.1, fill: { color: 'FCFCFB' }, line: { color: 'E4E3DF', width: 1 }, rectRadius: 0.1 });
+      s.addText(a.title.toUpperCase(), { x: x + 0.2, y: y + 0.15, w: w - 0.4, h: 0.4, fontSize: 11, color: MUTED, fontFace: 'Arial' });
+      s.addText(formatKpi(k.value, a.tile!.format), { x: x + 0.2, y: y + 0.6, w: w - 0.4, h: 0.8, fontSize: 30, bold: true, color: INK, fontFace: 'Arial' });
+      if (k.delta !== null) {
+        const sign = k.delta > 0 ? '▲ +' : k.delta < 0 ? '▼ ' : '';
+        s.addText(`${sign}${(k.delta * 100).toFixed(1)}% ${k.comparison}`, { x: x + 0.2, y: y + 1.45, w: w - 0.4, h: 0.4, fontSize: 11, color: MUTED, fontFace: 'Arial' });
+      }
+    });
+  }
+
+  for (const a of ordered.filter((x) => x.type !== 'kpi')) {
+    const table = tables[a.id] ?? a.table;
+    const spec = a.tile && table ? buildTileSpec(table, a.tile) : a.spec;
+    if (spec && a.type === 'chart') await addChartSlide(pptx, a.title, spec);
+    else if (table) addTableSlide(pptx, a.title, table);
     else if (a.text) addTextSlide(pptx, a.title, plainLines(a.text));
   }
   await pptx.writeFile({ fileName: fileName(d.title) });

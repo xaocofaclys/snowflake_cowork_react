@@ -5,3 +5,4 @@ export * from './models';
 export * from './workflow';
 export * from './cron';
 export * from './brand';
+export * from './dashboards';

@@ -24,6 +24,7 @@ export function Composer({
   autoFocus,
   research,
   onResearchChange,
+  initialText = '',
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
@@ -35,8 +36,9 @@ export function Composer({
   /** Deep research toggle (shown in the + menu when provided). */
   research?: boolean;
   onResearchChange?: (on: boolean) => void;
+  initialText?: string;
 }) {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText);
   const [sel, setSel] = useState(0);
   const [listening, setListening] = useState(false);
   const [menu, setMenu] = useState(false);

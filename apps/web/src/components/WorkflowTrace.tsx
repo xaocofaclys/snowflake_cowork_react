@@ -1,7 +1,7 @@
 'use client';
 
 import clsx from 'clsx';
-import { Bot, CheckCircle2, ChevronRight, CircleDot, Flag, GitBranch, GitMerge, Play, Telescope, XCircle } from 'lucide-react';
+import { Bot, CheckCircle2, ChevronRight, CircleDot, Flag, GitBranch, GitMerge, LayoutDashboard, Play, Telescope, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import type { WorkflowStep } from '@cowork/shared';
 import type { ResultContext } from './blocks/ResultCard';
@@ -9,7 +9,7 @@ import { Markdown } from './Markdown';
 import { AssistantMessage } from './Message';
 import { Spinner } from './ui';
 
-export const KIND_ICON = { start: Play, agent: Bot, condition: GitBranch, join: GitMerge, end: Flag, research: Telescope } as Record<string, typeof Bot>;
+export const KIND_ICON = { start: Play, agent: Bot, condition: GitBranch, join: GitMerge, end: Flag, research: Telescope, tile: LayoutDashboard } as Record<string, typeof Bot>;
 
 /** Step-by-step view of a workflow run: each node, its status, branch decisions and the agent's own output. */
 export function WorkflowTrace({ steps, streaming, ctx }: { steps: WorkflowStep[]; streaming?: boolean; ctx: ResultContext }) {
@@ -18,19 +18,21 @@ export function WorkflowTrace({ steps, streaming, ctx }: { steps: WorkflowStep[]
   const [open, setOpen] = useState(false);
   const running = visible.find((s) => s.status === 'running');
   const isResearch = visible.some((s) => s.kind === 'research');
-  const Icon = isResearch ? Telescope : GitBranch;
+  const isDashboard = visible.some((s) => s.kind === 'tile');
+  const Icon = isDashboard ? LayoutDashboard : isResearch ? Telescope : GitBranch;
+  const noun = isDashboard ? 'tile' : isResearch ? 'question' : 'step';
 
   return (
     <div className="my-2 rounded-xl border border-line bg-panel">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-ink-2">
         {streaming && running ? <Spinner className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5 text-ink-3" />}
-        <span className="font-medium text-ink">{isResearch ? 'Deep research' : 'Workflow'}</span>
+        <span className="font-medium text-ink">{isDashboard ? 'Building dashboard' : isResearch ? 'Deep research' : 'Workflow'}</span>
         <span className="truncate">
           {streaming && running
-            ? isResearch
-              ? `${done} of ${visible.length} questions researched`
+            ? isResearch || isDashboard
+              ? `${done} of ${visible.length} ${noun}s done`
               : `Running ${running.label}…`
-            : `${done} ${isResearch ? 'question' : 'step'}${done === 1 ? '' : 's'}`}
+            : `${done} ${noun}${done === 1 ? '' : 's'}`}
         </span>
         <span className="ml-1 flex items-center gap-1">
           {visible.map((s, i) => (
@@ -95,7 +97,7 @@ export function StepRow({ step, streaming, ctx }: { step: WorkflowStep; streamin
             </details>
           )}
           {step.error && <p className="text-xs text-danger">{step.error}</p>}
-          {step.kind === 'agent' || step.kind === 'research' ? (
+          {step.kind === 'agent' || step.kind === 'research' || step.kind === 'tile' ? (
             <AssistantMessage blocks={step.blocks} streaming={streaming && step.status === 'running'} ctx={{ ...ctx, messageId: undefined }} />
           ) : (
             step.output && <Markdown text={step.output} />

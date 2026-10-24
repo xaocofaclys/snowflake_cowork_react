@@ -8,6 +8,7 @@ import { newId, nowIso } from '../common/ids';
 import { QueueService } from '../common/queue.service';
 import { AutomationIntentService } from '../automations/automation-intent';
 import { AgentRouter } from '../cortex/agent-router';
+import { DashboardBuilderService } from '../dashboards/dashboard-builder.service';
 import { CortexService } from '../cortex/cortex.service';
 import { LlmService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
@@ -46,6 +47,7 @@ export class ChatService implements OnModuleInit {
     private readonly research: ResearchService,
     private readonly router: AgentRouter,
     private readonly intent: AutomationIntentService,
+    private readonly dashboards: DashboardBuilderService,
   ) {}
 
   onModuleInit() {
@@ -141,13 +143,25 @@ export class ChatService implements OnModuleInit {
         builder.add(ev);
         send(ev);
       };
+      // "Build a dashboard for …" → design and build one; with a dashboard in this thread, "add/remove/change …" edits it.
+      let dashboardHandled = false;
+      const dashOpts = { userId, cred: auth.cred, request: body.text, agentId: thread.agentId, emit: relay, signal: abort.signal, threadId: thread.id };
+      if (DashboardBuilderService.looksLikeBuild(body.text)) {
+        const d = await this.dashboards.build(dashOpts);
+        await this.store.patch<Thread>('THREADS', thread.id, { dashboardId: d.id });
+        dashboardHandled = true;
+      } else if (thread.dashboardId && DashboardBuilderService.looksLikeEdit(body.text)) {
+        dashboardHandled = !!(await this.dashboards.edit({ ...dashOpts, dashboardId: thread.dashboardId }));
+      }
       // "Send me this every Monday at 8am" → propose an automation instead of asking the agent.
-      const proposal = this.intent.looksLikeScheduling(body.text)
+      const proposal = !dashboardHandled && this.intent.looksLikeScheduling(body.text)
         ? await this.intent.detect(body.text, { ...(await this.previousTurn(thread.id, body.text)), agentId: thread.agentId, research: isResearch }, auth.cred)
         : null;
       // Workflows, research and proposals skip chat memory, auto-charting of the turn and Cortex threads.
-      const composite = isWorkflow || isResearch || !!proposal;
-      if (proposal) {
+      const composite = isWorkflow || isResearch || !!proposal || dashboardHandled;
+      if (dashboardHandled) {
+        // already streamed by the dashboard builder
+      } else if (proposal) {
         relay({ type: 'text', index: 0, text: 'I can set this up as an automation. Check the details and confirm:' });
         relay({ type: 'automation_proposal', proposal });
       } else if (isResearch) {

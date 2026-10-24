@@ -29,14 +29,18 @@ export function ChatView({ threadId }: { threadId?: string }) {
   const { send, stop } = useChatStore.getState();
   const [picked, setPicked] = useState<string>();
   const [research, setResearch] = useState(false);
+  const [prefill, setPrefill] = useState('');
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
 
   // Deep link from the workflow playground: /?agent=<id>
   useEffect(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get('agent');
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('agent');
     if (fromUrl) setPicked(fromUrl);
+    // Prefilled message, e.g. /?q=Build a dashboard for …
+    if (params.get('q')) setPrefill(params.get('q')!);
   }, []);
 
   const realAgents = agents.filter((a) => a.kind === 'agent');
@@ -104,6 +108,8 @@ export function ChatView({ threadId }: { threadId?: string }) {
                 : 'Pick an agent to get started'}
           </p>
           <Composer
+            key={prefill}
+            initialText={prefill}
             onSend={onSend}
             onStop={() => undefined}
             streaming={false}

@@ -1,4 +1,5 @@
 import type { ContentBlock } from './blocks';
+import type { DashboardFilter, TileConfig, TileDesign } from './dashboards';
 import type { TableData } from './events';
 
 export interface User {
@@ -32,6 +33,8 @@ export interface Thread {
   /** Cortex assistant message_id to pass as parent_message_id on the next turn */
   lastCortexMessageId?: number;
   pinned?: boolean;
+  /** The dashboard this conversation built; follow-ups like "add a chart of X" edit it. */
+  dashboardId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,7 +49,7 @@ export interface Message {
   createdAt: string;
 }
 
-export type ArtifactType = 'chart' | 'table' | 'answer' | 'report';
+export type ArtifactType = 'chart' | 'table' | 'answer' | 'report' | 'kpi';
 
 /** "Agent" id meaning: let the app choose the agent(s) for each task. */
 export const AUTO_AGENT_ID = 'auto';
@@ -76,6 +79,9 @@ export interface Artifact {
   blocks?: ContentBlock[];
   findings?: ResearchFinding[];
   question?: string;
+  /** Dashboard tiles: how the tile was designed and how its columns map to roles and filters. */
+  design?: TileDesign;
+  tile?: TileConfig;
   sql?: string;
   queryId?: string;
   agentId?: string;
@@ -144,6 +150,11 @@ export interface Dashboard {
   userId: string;
   title: string;
   description?: string;
+  /** Chat-built dashboards: the request, the agent scope and the filter bar. */
+  question?: string;
+  agentId?: string;
+  filters?: DashboardFilter[];
+  threadId?: string;
   items: DashboardItem[];
   sharedWith?: string[];
   createdAt: string;

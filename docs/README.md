@@ -6,9 +6,9 @@
 | 2 | [Local development](02-local-development.md) | Run modes (offline, OAuth, SPCS simulation), environment reference, tests |
 | 3 | [Snowflake setup](03-snowflake-setup.md) | The setup scripts in order, agent grants, service user, OAuth, adding users |
 | 4 | [SPCS deployment](04-spcs-deployment.md) | Images, router, build and push, service spec, endpoint access, releases, cost |
-| 5 | [Operations](05-operations.md) | Health checks, logs, issues we hit and their fixes, security notes |
+| 5 | [Operations](05-operations.md) | Health checks, logs, issues we hit and their fixes, data residency, security notes |
 | 6 | [Workflows](06-workflows.md) | Composing Snowflake agents: sequential, parallel, conditional (AI_CLASSIFY), builder permissions, automatic agent access |
-| 7 | [Deep research, dashboards, automations, export](07-research-dashboards-automations.md) | Cited multi-agent reports, Auto agent selection, dashboards, scheduled runs with email, PDF/PowerPoint |
+| 7 | [Deep research, dashboards, automations, export](07-research-dashboards-automations.md) | Cited multi-agent reports, Auto agent selection, chat-built dashboards (filters, cross-filtering, KPIs), scheduled runs with email, PDF/PowerPoint |
 
 ## Current deployment
 
@@ -17,8 +17,9 @@
 | App URL | https://eaptzc-lbxplby-jj73300.snowflakecomputing.app |
 | Account | `LBXPLBY-JJ73300` |
 | Service | `COWORK_APP.SPCS.COWORK_SERVICE` on `COWORK_POOL` (CPU_X64_XS) |
-| Images | `cowork_app/spcs/images/{cowork-api,cowork-web,cowork-router}:v1` |
-| Agent | `DEV_REACT_COWORK.AGENTS.NBA_FIELD_REP_ASSISTANT` |
+| Images | `cowork_app/spcs/images/{cowork-api,cowork-web,cowork-router}`: `v3` live in production; `v4` next (dashboards from chat) |
+| Auto start/stop | Postponed: `06_phase2.sql` PART B not run yet, so the service runs continuously |
+| Agents | `DEV_REACT_COWORK.AGENTS.*`, currently `NBA_FIELD_REP_ASSISTANT` and `TEST_AGENT` (granted automatically via future grants) |
 | App data | `COWORK_APP.CORE` |
 | User role | `COWORK_USER` (users: account owner, `ARPAN`) |
 
@@ -50,4 +51,5 @@
 |---|---|
 | **2** | ✅ Workflow playground + builder (sequential / parallel / conditional with AI_CLASSIFY), builder-role hook, automatic agent grants, IST auto start/stop |
 | **3** | ✅ Deep research (claude-sonnet-4-5), Auto agent selection, dashboards, automations with email, PDF/PowerPoint export. Released together with phase 2 as image tag `v3` |
+| **4** | ✅ Chat-built Power BI-style dashboards: KPI cards with change and sparklines, filter bar, cross-filtering, drill-down, editing in chat (image tag `v4`) |
 | **Next** | File upload as context (stage + `AI_PARSE_DOCUMENT`), caller's rights in SPCS, maps (`response.map`), MCP connectors, Redis container in the service, Snowflake Decision for conditions |

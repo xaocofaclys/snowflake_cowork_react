@@ -72,7 +72,29 @@ Snowflake CLI), or create a programmatic access token in Snowsight (profile → 
 | Deep research report is just a list of findings | `RESEARCH_MODEL` failed (see API logs for `COMPLETE failed`). Check model availability / cross-region setting |
 | Container restarting | `SYSTEM$GET_SERVICE_LOGS(..., 'api', 200)`. Usually an env validation message on the first lines |
 
-## 5.3 Security notes
+## 5.3 Where data goes (data residency)
+
+**In production (SPCS), the app runs and stores everything inside Snowflake:**
+
+| Piece | Location |
+|---|---|
+| Web, API and router containers | SPCS in account `LBXPLBY-JJ73300` |
+| Chats, artifacts, memories, workflows, dashboards, automations | `COWORK_APP.CORE` tables |
+| Agents, `AI_CLASSIFY`, embeddings, `claude-sonnet-4-5` (research) | Cortex via the internal `SNOWFLAKE_HOST` endpoint (models hosted by Snowflake) |
+| Cache | In memory inside the API container (no Redis) |
+| Sign-in | Snowflake ingress |
+
+- The service has **no external access integration**, so its containers cannot reach the internet. Snowflake enforces this.
+- In code, the API's only outbound calls are `snowflake.client.ts` (your account) and `auth.service.ts` (OAuth token endpoint of your account, local dev only). The browser loads no external fonts, scripts or analytics. Charts and PowerPoint export are bundled and run client-side. Next.js telemetry is disabled in the image.
+
+**Deliberate exits:**
+1. **Automation emails** (`SYSTEM$SEND_EMAIL`) carry report/answer text to recipients' inboxes. Only verified emails of account users are allowed. Leave email off for sensitive automations; results are still saved in the app.
+2. **Users' devices:** what the browser displays, and PDF/PowerPoint exports saved locally.
+3. **Cross-region Cortex:** stays off unless someone runs `ALTER ACCOUNT SET CORTEX_ENABLED_CROSS_REGION`. Keep it off if data must stay in-region.
+
+**Outside production:** `npm run dev` processes data on the developer's laptop (and offline mode writes `.data/db.json`). Image builds pull code dependencies from npm and Docker Hub; images contain code only.
+
+## 5.4 Security notes
 
 - The OAuth client secret was pasted into a chat during setup. Rotate it before real users: `ALTER SECURITY INTEGRATION COWORK_OAUTH REFRESH OAUTH_CLIENT_SECRET;` and update `.env`.
 - `cowork_svc.p8` gives access as `COWORK_APP_SERVICE`. Keep it out of git (it's ignored) and rotate it with `RSA_PUBLIC_KEY_2` if it leaks.

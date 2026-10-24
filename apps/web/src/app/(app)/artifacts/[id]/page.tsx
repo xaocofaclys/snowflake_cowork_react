@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
 import { AUTO_AGENT_ID, type Artifact } from '@cowork/shared';
 import { AddToDashboard } from '@/components/AddToDashboard';
+import { KpiCard } from '@/components/dashboard/Tiles';
 import { AutomationEditor } from '@/components/AutomationEditor';
 import { DataTable } from '@/components/DataTable';
 import { AssistantMessage } from '@/components/Message';
@@ -136,10 +137,15 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
               <VegaChart spec={a.spec} height={420} />
             </div>
           )}
+          {a.type === 'kpi' && (
+            <div className="max-w-sm rounded-xl border border-line bg-panel">
+              <KpiCard a={a} table={a.table} />
+            </div>
+          )}
           {a.type === 'report' && <ReportView artifact={a} />}
           {a.type === 'answer' && a.blocks && <AssistantMessage blocks={a.blocks} ctx={{ agentId: a.agentId, question: a.question }} />}
           {a.type === 'answer' && !a.blocks && a.text && <Markdown text={a.text} />}
-          {(a.type === 'chart' || a.type === 'table') && a.table && <DataTable table={a.table} maxHeight={480} />}
+          {(a.type === 'chart' || a.type === 'table' || a.type === 'kpi') && a.table && <DataTable table={a.table} maxHeight={480} />}
         </div>
       </div>
       <Modal open={showSql} onClose={() => setShowSql(false)} title="SQL" wide>
