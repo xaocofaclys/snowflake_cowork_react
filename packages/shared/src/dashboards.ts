@@ -1,4 +1,5 @@
 import { columnRole, tableToValues } from './charts';
+import { formatCompact, type Currency, type NumberFormat } from './insights';
 import type { TableData } from './events';
 
 /**
@@ -182,12 +183,10 @@ export function computeKpi(table: TableData, tile: TileConfig, range?: { from?: 
   return { value, previous, delta, comparison, series };
 }
 
-export function formatKpi(v: number | null, format: KpiFormat = 'number'): string {
+export function formatKpi(v: number | null, format: KpiFormat = 'number', prefs: { numberFormat?: NumberFormat; currency?: Currency } = {}): string {
   if (v === null || !Number.isFinite(v)) return '—';
   if (format === 'percent') return `${(Math.abs(v) <= 1.5 ? v * 100 : v).toFixed(1)}%`;
-  const abs = Math.abs(v);
-  const compact = abs >= 1e9 ? `${(v / 1e9).toFixed(1)}B` : abs >= 1e6 ? `${(v / 1e6).toFixed(1)}M` : abs >= 1e4 ? `${(v / 1e3).toFixed(1)}K` : v.toLocaleString(undefined, { maximumFractionDigits: abs < 10 ? 2 : 0 });
-  return format === 'currency' ? `$${compact}` : compact;
+  return formatCompact(v, { numberFormat: prefs.numberFormat, currency: format === 'currency' ? (prefs.currency ?? 'USD') : undefined });
 }
 
 const field = (name: string) => name.replace(/([.[\]])/g, '\\$1');

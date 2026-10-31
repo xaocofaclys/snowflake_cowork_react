@@ -4,6 +4,7 @@ import clsx from 'clsx';
 import { ArrowDownRight, ArrowUpRight, Minus, TableProperties } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { buildTileSpec, computeKpi, formatKpi, type Artifact, type KpiValue, type TableData } from '@cowork/shared';
+import { usePrefs } from '@/lib/hooks';
 import { DataTable } from '../DataTable';
 import { Markdown } from '../Markdown';
 import { Modal } from '../ui';
@@ -12,14 +13,14 @@ import { VegaChart } from '../VegaChart';
 /** Small trend line for KPI cards: recessive, single series, no axes. */
 function Sparkline({ series }: { series: KpiValue['series'] }) {
   if (series.length < 2) return null;
-  const w = 120;
-  const h = 32;
+  const w = 96;
+  const h = 30;
   const vs = series.map((s) => s.v);
   const min = Math.min(...vs);
   const max = Math.max(...vs);
   const pts = vs.map((v, i) => `${(i / (vs.length - 1)) * w},${h - 3 - ((v - min) / (max - min || 1)) * (h - 6)}`);
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible" aria-hidden>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0 overflow-visible" aria-hidden>
       <polyline points={pts.join(' ')} fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={pts[pts.length - 1].split(',')[0]} cy={pts[pts.length - 1].split(',')[1]} r={3} fill="var(--accent)" stroke="var(--panel)" strokeWidth={2} />
     </svg>
@@ -27,30 +28,37 @@ function Sparkline({ series }: { series: KpiValue['series'] }) {
 }
 
 export function KpiCard({ a, table, range }: { a: Artifact; table?: TableData; range?: { from?: string; to?: string } }) {
+  const prefs = usePrefs();
   const k = useMemo(() => (a.tile && table ? computeKpi(table, a.tile, range) : null), [a.tile, table, range]);
   const up = (k?.delta ?? 0) > 0.0005;
   const down = (k?.delta ?? 0) < -0.0005;
   const Icon = up ? ArrowUpRight : down ? ArrowDownRight : Minus;
   return (
-    <div className="flex h-full flex-col justify-between p-4">
-      <div className="text-xs font-medium uppercase tracking-wide text-ink-2">{a.title}</div>
-      <div className="flex items-end justify-between gap-2">
-        <div>
-          <div className="text-3xl font-semibold tabular-nums tracking-tight">{formatKpi(k?.value ?? null, a.tile?.format)}</div>
-          {k?.delta !== null && k?.delta !== undefined ? (
-            <div className="mt-1 flex items-center gap-1 text-xs text-ink-2">
-              <span className={clsx('inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium', up && 'bg-accent-soft text-accent', down && 'bg-danger/10 text-danger', !up && !down && 'bg-raised')}>
-                <Icon className="h-3 w-3" />
-                {up ? '+' : ''}
-                {(k.delta * 100).toFixed(1)}%
-              </span>
-              <span className="text-ink-3">{k.comparison}</span>
+    // @container: the card adapts to its own width (narrow canvas tiles drop the sparkline, never the number).
+    <div className="@container flex h-full min-w-0 flex-col justify-between gap-2 p-4">
+      <div className="truncate text-xs font-medium uppercase tracking-wide text-ink-2">{a.title}</div>
+      <div className="min-w-0">
+        <div className="flex items-end justify-between gap-2">
+          <div className="truncate text-2xl font-semibold tabular-nums tracking-tight @min-[16rem]:text-3xl">{formatKpi(k?.value ?? null, a.tile?.format, prefs)}</div>
+          {k && (
+            <div className="hidden @min-[15rem]:block">
+              <Sparkline series={k.series} />
             </div>
-          ) : (
-            <div className="mt-1 text-xs text-ink-3">{k?.series.length ? 'No earlier period to compare' : ' '}</div>
           )}
         </div>
-        {k && <Sparkline series={k.series} />}
+        {/* Change on its own line so narrow tiles never wrap it word by word. */}
+        {k?.delta !== null && k?.delta !== undefined ? (
+          <div className="mt-1.5 flex min-w-0 items-center gap-1.5 whitespace-nowrap text-xs text-ink-2">
+            <span className={clsx('inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-0.5 font-medium', up && 'bg-accent-soft text-accent', down && 'bg-danger/10 text-danger', !up && !down && 'bg-raised')}>
+              <Icon className="h-3 w-3" />
+              {up ? '+' : ''}
+              {(k.delta * 100).toFixed(1)}%
+            </span>
+            <span className="truncate text-ink-3">{k.comparison}</span>
+          </div>
+        ) : (
+          <div className="mt-1.5 truncate text-xs text-ink-3">{k?.series.length ? 'No earlier period to compare' : '\u00a0'}</div>
+        )}
       </div>
     </div>
   );

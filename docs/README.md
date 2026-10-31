@@ -8,6 +8,7 @@
 | 4 | [SPCS deployment](04-spcs-deployment.md) | Images, router, build and push, service spec, endpoint access, releases, cost |
 | 5 | [Operations](05-operations.md) | Health checks, logs, issues we hit and their fixes, data residency, security notes |
 | 6 | [Workflows](06-workflows.md) | Composing Snowflake agents: sequential, parallel, conditional (AI_CLASSIFY), builder permissions, automatic agent access |
+| 8 | [The Flurry experience](08-experience.md) | Visual identity, Home workspace, ⌘K palette, insights, suggestions, live canvas, personalisation |
 | 7 | [Deep research, dashboards, automations, export](07-research-dashboards-automations.md) | Cited multi-agent reports, Auto agent selection, chat-built dashboards (filters, cross-filtering, KPIs), scheduled runs with email, PDF/PowerPoint |
 
 ## Current deployment
@@ -52,4 +53,6 @@
 | **2** | ✅ Workflow playground + builder (sequential / parallel / conditional with AI_CLASSIFY), builder-role hook, automatic agent grants, IST auto start/stop |
 | **3** | ✅ Deep research (claude-sonnet-4-5), Auto agent selection, dashboards, automations with email, PDF/PowerPoint export. Released together with phase 2 as image tag `v3` |
 | **4** | ✅ Chat-built Power BI-style dashboards: KPI cards with change and sparklines, filter bar, cross-filtering, drill-down, editing in chat (image tag `v4`) |
+| **4.1** | ✅ Assistant layer: preferences/memory, app help and small talk answered directly (no agent call) |
+| **5** | ✅ The Flurry experience: new visual identity and accents, Home workspace with KPI watchlist and pins, ⌘K palette, insight callouts, follow-up suggestions, click-to-ask, edit/regenerate, live canvas, answer preferences (style, lakh/crore, currency), welcome tour, mobile layout |
 | **Next** | File upload as context (stage + `AI_PARSE_DOCUMENT`), caller's rights in SPCS, maps (`response.map`), MCP connectors, Redis container in the service, Snowflake Decision for conditions |

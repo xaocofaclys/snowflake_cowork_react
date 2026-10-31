@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePrefs } from '@/lib/hooks';
 import { useTheme } from '@/lib/theme';
 import { vegaConfig } from '@/lib/vega-theme';
 
@@ -26,6 +27,7 @@ export function VegaChart({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const { dark } = useTheme();
+  const numberFormat = usePrefs().numberFormat ?? 'international';
   const [error, setError] = useState<string>();
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export function VegaChart({
       try {
         // With an explicit height (tiles, modals) the whole chart, axes included, must fit inside it.
         const sized = height ? { height, autosize: { type: 'fit', contains: 'padding' } } : {};
-        const s = { ...spec, ...sized, config: { ...vegaConfig(dark), ...((spec.config as object) ?? {}) } };
+        const s = { ...spec, ...sized, config: { ...vegaConfig(dark, numberFormat), ...((spec.config as object) ?? {}) } };
         const result = await embed(ref.current, s as never, { actions: false, renderer: 'svg', tooltip: { theme: dark ? 'dark' : 'light' } });
         const v = result.view as unknown as NonNullable<typeof view>;
         view = v;
@@ -59,7 +61,7 @@ export function VegaChart({
       view?.finalize();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [spec, dark, height]);
+  }, [spec, dark, height, numberFormat]);
 
   if (error) return <div className="rounded-lg bg-raised p-3 text-xs text-danger">Chart could not render: {error}</div>;
   return <div ref={ref} className="w-full" />;

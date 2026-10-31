@@ -38,6 +38,7 @@ export type ContentBlock =
   | { type: 'workflow'; steps: WorkflowStep[] }
   | { type: 'artifact_link'; artifactId: string; title: string; kind: string }
   | { type: 'automation_proposal'; proposal: AutomationProposal }
+  | { type: 'suggestions'; items: string[] }
   | { type: 'error'; message: string };
 
 export interface WorkflowStep {
@@ -198,6 +199,10 @@ export class BlockBuilder {
         }
         break;
       }
+      case 'suggestions':
+        this.upsert('suggestions', () => ({ type: 'suggestions', items: [] }));
+        (this.keyed.get('suggestions') as BlockOf<'suggestions'>).items = ev.items;
+        break;
       case 'automation_proposal':
         this.blocks.push({ type: 'automation_proposal', proposal: ev.proposal });
         break;

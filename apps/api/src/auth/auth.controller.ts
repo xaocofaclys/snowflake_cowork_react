@@ -69,7 +69,6 @@ export class AuthController {
 
   @Patch('settings')
   updateSettings(@Auth() a: AuthContext, @Body() body: Partial<UserSettings>) {
-    const { memoryEnabled, defaultAgentId, autoChart } = body;
-    return this.settings.update(a.user.id, { memoryEnabled, defaultAgentId, autoChart });
+    return this.settings.update(a.user.id, body);
   }
 }

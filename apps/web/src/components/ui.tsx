@@ -14,10 +14,10 @@ export function Button({
     <button
       {...p}
       className={clsx(
-        'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none',
+        'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition disabled:opacity-50 disabled:pointer-events-none',
         size === 'sm' ? 'h-7 px-2.5 text-xs' : 'h-9 px-3.5 text-sm',
-        variant === 'primary' && 'bg-accent text-accent-ink hover:opacity-90',
-        variant === 'default' && 'border border-line bg-bg hover:bg-raised text-ink',
+        variant === 'primary' && 'bg-brand text-white shadow-soft hover:opacity-95 active:scale-[0.98]',
+        variant === 'default' && 'border border-line bg-bg hover:bg-raised text-ink shadow-soft',
         variant === 'ghost' && 'hover:bg-raised text-ink-2',
         variant === 'danger' && 'bg-danger text-white hover:opacity-90',
         className,
@@ -52,12 +52,12 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-[2px]" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-label={title}
         onMouseDown={(e) => e.stopPropagation()}
-        className={clsx('w-full rounded-xl border border-line bg-bg shadow-xl', wide ? 'max-w-5xl' : 'max-w-md')}
+        className={clsx('animate-fade-up w-full rounded-2xl border border-line bg-bg shadow-lift', wide ? 'max-w-5xl' : 'max-w-md')}
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-sm font-semibold">{title}</h2>

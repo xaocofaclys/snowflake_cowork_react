@@ -1,17 +1,40 @@
 'use client';
 
 import clsx from 'clsx';
-import { BarChart3, Bookmark, Check, Copy, Database, Download, Maximize2, Sparkles, Table2 } from 'lucide-react';
+import {
+  ArrowDownToLine,
+  BarChart3,
+  Bookmark,
+  Check,
+  Copy,
+  Database,
+  Download,
+  Maximize2,
+  Minus,
+  Mountain,
+  PanelRightOpen,
+  PieChart,
+  Sigma,
+  Sparkles,
+  Table2,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+} from 'lucide-react';
 import { useMemo, useRef, useState } from 'react';
 import {
   buildChartSpec,
   CHART_TYPES,
+  computeInsights,
   retypeSpec,
   specChartType,
   suggestChartType,
   type BlockOf,
   type ChartType,
+  type Insight,
 } from '@cowork/shared';
+import { usePrefs } from '@/lib/hooks';
+import { useUi } from '@/lib/ui-store';
 import { DataTable, download } from '../DataTable';
 import { SaveArtifactDialog } from '../SaveArtifactDialog';
 import { IconButton, Modal, Spinner } from '../ui';
@@ -45,7 +68,10 @@ const TOOL_LABELS: Record<string, string> = {
  * Charts come from Cortex (`response.chart`), from the API fallback, or are
  * built here on demand from the table.
  */
-export function ResultCard({ group, ctx, streaming }: { group: ResultGroup; ctx: ResultContext; streaming?: boolean }) {
+export function ResultCard({ group, ctx, streaming, inCanvas }: { group: ResultGroup; ctx: ResultContext; streaming?: boolean; inCanvas?: boolean }) {
+  const prefs = usePrefs();
+  const openCanvas = useUi((s) => s.openCanvas);
+  const setDraft = useUi((s) => s.setDraft);
   const table = group.tables[0];
   const agentChart = group.charts[0];
   const sql = group.tool?.sql ?? table?.sql ?? agentChart?.sql;
@@ -67,6 +93,8 @@ export function ResultCard({ group, ctx, streaming }: { group: ResultGroup; ctx:
   const [copied, setCopied] = useState(false);
   const chartRef = useRef<ChartHandle | null>(null);
 
+  const insights = useMemo(() => (table && !streaming ? computeInsights(table.table, { numberFormat: prefs.numberFormat }) : []), [table, streaming, prefs.numberFormat]);
+
   const running = group.tool?.status === 'running' && streaming;
   if (!table && !agentChart && !sql) {
     return group.tool ? <ToolRow tool={group.tool} running={running} /> : null;
@@ -76,7 +104,7 @@ export function ResultCard({ group, ctx, streaming }: { group: ResultGroup; ctx:
   const currentType = spec ? specChartType(spec) : null;
 
   return (
-    <div className="my-3 overflow-hidden rounded-xl border border-line bg-panel">
+    <div className={clsx('overflow-hidden rounded-2xl border border-line bg-panel shadow-soft', inCanvas ? '' : 'my-3')}>
       <div className="flex items-center gap-1 border-b border-line px-2 py-1.5">
         <div className="mr-2 flex items-center gap-1.5 pl-1 text-xs text-ink-3">
           {running ? <Spinner className="h-3.5 w-3.5" /> : <Database className="h-3.5 w-3.5" />}
@@ -108,9 +136,11 @@ export function ResultCard({ group, ctx, streaming }: { group: ResultGroup; ctx:
               <IconButton label="Download PNG" onClick={async () => chartRef.current && download('chart.png', await chartRef.current.toImageURL('png'))}>
                 <Download className="h-3.5 w-3.5" />
               </IconButton>
-              <IconButton label="Expand" onClick={() => setExpanded(true)}>
-                <Maximize2 className="h-3.5 w-3.5" />
-              </IconButton>
+              {!inCanvas && (
+                <IconButton label="Expand" onClick={() => setExpanded(true)}>
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </IconButton>
+              )}
             </>
           )}
           {active === 'sql' && sql && (
@@ -130,12 +160,36 @@ export function ResultCard({ group, ctx, streaming }: { group: ResultGroup; ctx:
               <Bookmark className="h-3.5 w-3.5" />
             </IconButton>
           )}
+          {!inCanvas && !streaming && (table || agentChart) && (
+            <IconButton label="Open in canvas" onClick={() => openCanvas({ kind: 'result', title, group, ctx })}>
+              <PanelRightOpen className="h-3.5 w-3.5" />
+            </IconButton>
+          )}
         </div>
       </div>
 
+      {insights.length > 0 && active !== 'sql' && (
+        <div className="flex flex-wrap gap-1.5 border-b border-line px-3 py-2">
+          {insights.map((ins) => (
+            <InsightChip key={ins.text} ins={ins} />
+          ))}
+        </div>
+      )}
       <div className="p-3">
-        {active === 'chart' && spec && <VegaChart spec={spec} onReady={(h) => (chartRef.current = h)} />}
-        {active === 'table' && table && <DataTable table={table.table} />}
+        {active === 'chart' && spec && (
+          <VegaChart
+            spec={spec}
+            height={inCanvas ? 420 : undefined}
+            onReady={(h) => (chartRef.current = h)}
+            onSelect={streaming ? undefined : (d) => {
+              const label = Object.entries(d).find(([k, v]) => typeof v === 'string' && !k.startsWith('__') && !/^\d{4}-\d{2}/.test(v));
+              const when = Object.values(d).find((v) => typeof v === 'string' && /^\d{4}-\d{2}/.test(v)) as string | undefined;
+              const subject = label ? `${label[1]}` : when ? new Date(when).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }) : null;
+              if (subject) setDraft(`Tell me more about ${subject}${ctx.question ? ` (from: ${ctx.question})` : ''}`);
+            }}
+          />
+        )}
+        {active === 'table' && table && <DataTable table={table.table} maxHeight={inCanvas ? 560 : undefined} />}
         {active === 'sql' && sql && (
           <div>
             {group.tool?.sqlExplanation && <p className="mb-2 text-xs text-ink-2">{group.tool.sqlExplanation}</p>}
@@ -165,6 +219,18 @@ export function ResultCard({ group, ctx, streaming }: { group: ResultGroup; ctx:
         />
       )}
     </div>
+  );
+}
+
+const INSIGHT_ICON = { up: TrendingUp, down: TrendingDown, flat: Minus, peak: Mountain, top: Trophy, low: ArrowDownToLine, share: PieChart, total: Sigma };
+
+function InsightChip({ ins }: { ins: Insight }) {
+  const Icon = INSIGHT_ICON[ins.kind];
+  return (
+    <span className="animate-fade-up inline-flex items-center gap-1.5 rounded-lg bg-raised/70 px-2 py-1 text-xs text-ink-2">
+      <Icon className={clsx('h-3.5 w-3.5', ins.kind === 'down' ? 'text-danger' : 'text-accent')} />
+      {ins.text}
+    </span>
   );
 }
 

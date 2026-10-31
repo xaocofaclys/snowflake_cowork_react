@@ -22,7 +22,7 @@ interface ChatState {
     threadId?: string;
     agentId: string;
     text: string;
-    mode?: 'chat' | 'research';
+    mode?: 'chat' | 'research' | 'dashboard';
     onThread?: (id: string) => void;
     onDone?: (threadId: string) => void;
   }) => Promise<void>;

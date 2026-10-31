@@ -91,6 +91,8 @@ export type StreamEvent =
   | { type: 'artifact'; artifactId: string; title: string; kind: string }
   /** The user asked (in chat) to schedule something: a confirmation card, nothing created yet. */
   | { type: 'automation_proposal'; proposal: AutomationProposal }
+  /** Suggested next questions for this answer. */
+  | { type: 'suggestions'; items: string[] }
   | { type: 'done'; messageId: string };
 
 export type StreamEventType = StreamEvent['type'];

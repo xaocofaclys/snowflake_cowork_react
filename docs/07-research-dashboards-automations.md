@@ -1,5 +1,18 @@
 # 7. Deep research, dashboards, automations and export
 
+## 7.0 How chat routes a message
+
+Before any agent is called, the API checks, in order:
+
+1. **Dashboard** build ("build a dashboard for …") or edit (in a thread that built one).
+2. **Automation proposal** ("send me this every Monday …").
+3. **Assistant layer** (`apps/api/src/chat/assistant.service.ts`): messages about the app or the user are answered with Cortex `COMPLETE` (`RESEARCH_MODEL`), with **no agent call**:
+   - memory: "add this as a preference", "remember …", "forget …", "what do you remember about me?" ("this" resolves from the previous turn; respects Settings → Memory);
+   - app help: "what can you do?", "how do I schedule a report?", "which agents do I have?" (answered from a built-in feature description plus the user's agent list);
+   - small talk: "hi", "thanks".
+   A keyword pre-check means ordinary data questions never pay for this extra call. If the model decides a message needs data, it still goes to the agent. Offline, rule-based fallbacks apply.
+4. **Deep research**, a **workflow**, or the **agent** (Auto picks one).
+
 ## 7.1 Deep research
 
 Turn it on with **+ → Deep research** in the message box. The selected agent decides the scope:

@@ -1,9 +1,9 @@
 'use client';
 
-import { Snowflake } from 'lucide-react';
 import { APP_NAME, APP_TAGLINE } from '@cowork/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
+import { LogoMark } from '@/components/Logo';
 import { Button, inputCls } from '@/components/ui';
 import { api, API_URL } from '@/lib/api';
 
@@ -18,10 +18,10 @@ function Login() {
   }, []);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-sidebar px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-line bg-bg p-8 shadow-sm">
+    <div className="hero-snow flex min-h-screen items-center justify-center bg-canvas px-4">
+      <div className="animate-fade-up w-full max-w-sm rounded-3xl border border-line bg-bg p-8 shadow-lift">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <Snowflake className="h-9 w-9 text-accent" />
+          <LogoMark size={48} />
           <h1 className="text-xl font-semibold">Sign in to {APP_NAME}</h1>
           <p className="text-sm text-ink-3">{APP_TAGLINE}</p>
         </div>

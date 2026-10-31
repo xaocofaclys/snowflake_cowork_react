@@ -4,6 +4,7 @@
 
 @theme {
   --color-bg: var(--bg);
+  --color-canvas: var(--canvas);
   --color-panel: var(--panel);
   --color-sidebar: var(--sidebar);
   --color-raised: var(--raised);
@@ -14,48 +15,113 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
   --color-danger: var(--danger);
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+/* Snow palette. Accents are chosen per user (data-accent); soft tints derive from them. */
 :root {
   --bg: #ffffff;
-  --panel: #fcfcfb;
-  --sidebar: #f6f6f4;
-  --raised: #efefec;
-  --line: #e4e3df;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --ink-3: #8a8984;
+  --canvas: #f6f8fb;
+  --panel: #ffffff;
+  --sidebar: #f3f6fa;
+  --raised: #edf1f6;
+  --line: #e2e7ef;
+  --ink: #0d1218;
+  --ink-2: #4a5466;
+  --ink-3: #8a94a6;
   --accent: #1f6fd1;
+  --accent-2: #4fb3e8;
   --accent-ink: #ffffff;
-  --accent-soft: #e6f0fc;
   --danger: #c93b3a;
+  --accent-soft: color-mix(in srgb, var(--accent) 11%, var(--bg));
+  --shadow-soft: 0 1px 2px rgb(16 24 40 / 0.04), 0 4px 16px -4px rgb(16 24 40 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(16 24 40 / 0.05), 0 12px 32px -8px rgb(16 24 40 / 0.16);
   color-scheme: light;
 }
+:root[data-accent='glacier'] { --accent: #0e8a8c; --accent-2: #45c4c0; }
+:root[data-accent='aurora'] { --accent: #178f60; --accent-2: #5fd39c; }
+:root[data-accent='violet'] { --accent: #5b49d0; --accent-2: #a394f2; }
+:root[data-accent='rose'] { --accent: #cf2f68; --accent-2: #f48fb1; }
+:root[data-accent='amber'] { --accent: #b86e00; --accent-2: #f2b84b; }
 
 .dark {
-  --bg: #121211;
-  --panel: #1a1a19;
-  --sidebar: #161615;
-  --raised: #242422;
-  --line: #2f2f2c;
-  --ink: #f0efec;
-  --ink-2: #c3c2b7;
-  --ink-3: #8d8c84;
-  --accent: #3987e5;
-  --accent-ink: #ffffff;
-  --accent-soft: #1b2a3d;
-  --danger: #e66767;
+  --bg: #0c1016;
+  --canvas: #0a0e13;
+  --panel: #111821;
+  --sidebar: #0a0e13;
+  --raised: #19212d;
+  --line: #232d3b;
+  --ink: #edf1f7;
+  --ink-2: #b1bacb;
+  --ink-3: #7a8598;
+  --accent: #4b93ec;
+  --accent-2: #7cc8f0;
+  --danger: #ec6e6e;
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, var(--bg));
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 16px -4px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.35), 0 12px 32px -8px rgb(0 0 0 / 0.55);
   color-scheme: dark;
 }
+:root[data-accent='glacier'].dark { --accent: #2bb3b1; --accent-2: #6fe0d8; }
+:root[data-accent='aurora'].dark { --accent: #33b882; --accent-2: #7fe3b2; }
+:root[data-accent='violet'].dark { --accent: #9085e9; --accent-2: #c2b9fb; }
+:root[data-accent='rose'].dark { --accent: #e8608b; --accent-2: #f7a8c3; }
+:root[data-accent='amber'].dark { --accent: #e09a20; --accent-2: #f6cd73; }
 
 html,
 body {
   background: var(--bg);
   color: var(--ink);
   height: 100%;
+}
+
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+@utility shadow-lift {
+  box-shadow: var(--shadow-lift);
+}
+@utility bg-brand {
+  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+@utility text-brand {
+  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Motion: content eases in; skeletons shimmer while answers stream. */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: -400px 0; }
+  to { background-position: 400px 0; }
+}
+.animate-fade-up { animation: fade-up 0.32s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.animate-slide-in { animation: slide-in-right 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--raised) 0%, color-mix(in srgb, var(--raised) 40%, var(--bg)) 50%, var(--raised) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.hero-snow {
+  background:
+    radial-gradient(600px 220px at 15% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    radial-gradient(520px 200px at 85% 10%, color-mix(in srgb, var(--accent-2) 16%, transparent), transparent 70%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up, .animate-slide-in, .skeleton { animation: none; }
 }
 
 .prose-chat {

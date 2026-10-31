@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { AUTO_AGENT_ID, BlockBuilder, blocksToText, isWorkflowAgentId, type ContentBlock, type Message, type StreamEvent, type Thread } from '@cowork/shared';
+import { AUTO_AGENT_ID, BlockBuilder, blocksToText, isWorkflowAgentId, shapeFollowUps, type BlockOf, type ContentBlock, type Message, type StreamEvent, type Thread } from '@cowork/shared';
 import type { AuthContext } from '../auth/auth.types';
 import { SettingsService } from '../auth/settings.service';
 import { ChartService } from '../charts/chart.service';
@@ -13,6 +13,7 @@ import { CortexService } from '../cortex/cortex.service';
 import { LlmService } from '../llm/llm.service';
 import { MemoryService } from '../memory/memory.service';
 import { ResearchService } from '../research/research.service';
+import { AssistantService } from './assistant.service';
 import { DocStore } from '../store/doc-store';
 import { WorkflowsService } from '../workflows/workflows.service';
 
@@ -20,8 +21,8 @@ export interface StreamRequest {
   threadId?: string;
   agentId: string;
   text: string;
-  /** 'research' runs deep research for this turn instead of a single agent call. */
-  mode?: 'chat' | 'research';
+  /** 'research' runs deep research; 'dashboard' builds a dashboard from the message. */
+  mode?: 'chat' | 'research' | 'dashboard';
 }
 
 const MEMORY_WAIT_MS = 10_000;
@@ -48,6 +49,7 @@ export class ChatService implements OnModuleInit {
     private readonly router: AgentRouter,
     private readonly intent: AutomationIntentService,
     private readonly dashboards: DashboardBuilderService,
+    private readonly assistant: AssistantService,
   ) {}
 
   onModuleInit() {
@@ -146,7 +148,7 @@ export class ChatService implements OnModuleInit {
       // "Build a dashboard for …" → design and build one; with a dashboard in this thread, "add/remove/change …" edits it.
       let dashboardHandled = false;
       const dashOpts = { userId, cred: auth.cred, request: body.text, agentId: thread.agentId, emit: relay, signal: abort.signal, threadId: thread.id };
-      if (DashboardBuilderService.looksLikeBuild(body.text)) {
+      if (body.mode === 'dashboard' || DashboardBuilderService.looksLikeBuild(body.text)) {
         const d = await this.dashboards.build(dashOpts);
         await this.store.patch<Thread>('THREADS', thread.id, { dashboardId: d.id });
         dashboardHandled = true;
@@ -157,10 +159,20 @@ export class ChatService implements OnModuleInit {
       const proposal = !dashboardHandled && this.intent.looksLikeScheduling(body.text)
         ? await this.intent.detect(body.text, { ...(await this.previousTurn(thread.id, body.text)), agentId: thread.agentId, research: isResearch }, auth.cred)
         : null;
-      // Workflows, research and proposals skip chat memory, auto-charting of the turn and Cortex threads.
-      const composite = isWorkflow || isResearch || !!proposal || dashboardHandled;
-      if (dashboardHandled) {
-        // already streamed by the dashboard builder
+      // Messages about the app or the user (memory, help, small talk) are answered directly, without an agent.
+      const assistantHandled =
+        !dashboardHandled &&
+        !proposal &&
+        AssistantService.looksLikeAssistant(body.text) &&
+        (await this.assistant.handle(
+          body.text,
+          { userId, cred: auth.cred, threadId: thread.id, memoryEnabled: settings.memoryEnabled, ...(await this.previousTurn(thread.id, body.text)) },
+          relay,
+        ));
+      // Workflows, research, proposals and direct replies skip chat memory, auto-charting of the turn and Cortex threads.
+      const composite = isWorkflow || isResearch || !!proposal || dashboardHandled || assistantHandled;
+      if (dashboardHandled || assistantHandled) {
+        // already streamed
       } else if (proposal) {
         relay({ type: 'text', index: 0, text: 'I can set this up as an automation. Check the details and confirm:' });
         relay({ type: 'automation_proposal', proposal });
@@ -187,7 +199,7 @@ export class ChatService implements OnModuleInit {
           relay({ type: 'status', status: 'routing', message: `Asking ${picked.displayName}` });
         }
         const memories = settings.memoryEnabled ? await this.memory.retrieve(userId, body.text, auth.cred) : [];
-        const agentText = this.memory.formatContext(memories) + body.text;
+        const agentText = this.memory.formatContext(memories, settings) + body.text;
 
         for await (const ev of this.cortex.run(auth.cred, {
           agentId,
@@ -211,6 +223,15 @@ export class ChatService implements OnModuleInit {
           builder.add(ev);
           send(ev);
         }
+      }
+
+      // Suggested next questions for ordinary answers (cheap model; shape-based fallback).
+      if (!composite && !abort.signal.aborted) {
+        const items = await Promise.race([
+          this.followUps(body.text, builder.blocks, auth.cred),
+          new Promise<string[]>((r) => setTimeout(() => r([]), 6000)),
+        ]).catch(() => [] as string[]);
+        if (items.length) relay({ type: 'suggestions', items });
       }
 
       const messageId = await this.saveAssistant(userId, thread, builder.finalize());
@@ -259,14 +280,34 @@ export class ChatService implements OnModuleInit {
     return this.store.insert('THREADS', thread);
   }
 
+  private async followUps(question: string, blocks: ContentBlock[], cred?: AuthContext['cred']): Promise<string[]> {
+    const table = blocks.find((b): b is BlockOf<'table'> => b.type === 'table')?.table;
+    const answer = blocksToText(blocks).slice(0, 1200);
+    const cols = table ? table.columns.map((c) => c.name).join(', ') : '';
+    const out = await this.llm.completeJson<string[]>(
+      [
+        'Suggest 3 short follow-up questions (max 12 words each) a business user would ask next after this answer.',
+        'They must be answerable from the same data and add something new (a breakdown, a comparison, a driver, a time view).',
+        `Question: ${JSON.stringify(question)}`,
+        `Answer: ${JSON.stringify(answer)}`,
+        cols ? `Result columns: ${cols}` : '',
+        'Return ONLY a JSON array of 3 strings.',
+      ].join('\n'),
+      cred,
+    );
+    const list = Array.isArray(out) ? out.filter((s) => typeof s === 'string' && s.trim()).map((s) => s.trim().slice(0, 140)) : [];
+    return (list.length ? list : shapeFollowUps(question, table)).slice(0, 3);
+  }
+
   /** The question before the current one, and whether its answer was a deep-research report. */
-  private async previousTurn(threadId: string, current: string): Promise<{ previousQuestion?: string; previousWasResearch?: boolean }> {
+  private async previousTurn(threadId: string, current: string): Promise<{ previousQuestion?: string; previousAnswer?: string; previousWasResearch?: boolean }> {
     const msgs = await this.store.list<Message & { userId: string; updatedAt: string }>('MESSAGES', { parentId: threadId, order: 'asc', limit: 1000 });
     const earlier = msgs.filter((m) => !(m.role === 'user' && blocksToText(m.content) === current && m === msgs[msgs.length - 1]));
     const lastAssistant = [...earlier].reverse().find((m) => m.role === 'assistant');
     const lastUser = [...earlier].reverse().find((m) => m.role === 'user');
     return {
       previousQuestion: lastUser ? blocksToText(lastUser.content) : undefined,
+      previousAnswer: lastAssistant ? blocksToText(lastAssistant.content) : undefined,
       previousWasResearch: !!lastAssistant?.content.some((b) => b.type === 'artifact_link' && b.kind === 'report'),
     };
   }

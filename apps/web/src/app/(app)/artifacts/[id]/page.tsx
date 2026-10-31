@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CalendarPlus, Database, FileDown, LayoutDashboard, MessageSquare, Presentation, RefreshCw, Share2, Trash2 } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Database, FileDown, LayoutDashboard, MessageSquare, Pin, PinOff, Presentation, RefreshCw, Share2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { use, useState } from 'react';
@@ -17,7 +17,7 @@ import { Button, Modal, Spinner, inputCls } from '@/components/ui';
 import { VegaChart } from '@/components/VegaChart';
 import { api } from '@/lib/api';
 import { exportArtifactPptx, exportPdf } from '@/lib/export';
-import { useAgents, useArtifact, useMe } from '@/lib/hooks';
+import { useAgents, useArtifact, useMe, useTogglePin } from '@/lib/hooks';
 
 export default function ArtifactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -32,6 +32,7 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
   const [adding, setAdding] = useState(false);
   const [automating, setAutomating] = useState(false);
   const { data: agents = [] } = useAgents();
+  const pins = useTogglePin();
   const [exporting, setExporting] = useState(false);
 
   if (isLoading) return <Spinner className="mx-auto mt-20" />;
@@ -83,6 +84,9 @@ export default function ArtifactPage({ params }: { params: Promise<{ id: string 
                 <LayoutDashboard className="h-3.5 w-3.5" /> Add to dashboard
               </Button>
             )}
+            <Button variant="ghost" onClick={() => pins.toggle({ kind: 'artifact', id: a.id, title: a.title })} title={pins.isPinned(a.id) ? 'Unpin from Home' : 'Pin to Home'}>
+              {pins.isPinned(a.id) ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />} {pins.isPinned(a.id) ? 'Unpin' : 'Pin'}
+            </Button>
             {(a.type === 'report' || a.type === 'answer') && a.question && (
               <Button variant="ghost" onClick={() => setAutomating(true)}>
                 <CalendarPlus className="h-3.5 w-3.5" /> Automate

@@ -9,7 +9,7 @@ const CATEGORICAL = {
 };
 const SEQUENTIAL = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'];
 
-export function vegaConfig(dark: boolean) {
+export function vegaConfig(dark: boolean, numberFormat: 'international' | 'indian' = 'international') {
   const ink = dark ? '#f0efec' : '#0b0b0b';
   const ink2 = dark ? '#c3c2b7' : '#52514e';
   const grid = dark ? '#2f2f2c' : '#ecebe7';
@@ -43,7 +43,13 @@ export function vegaConfig(dark: boolean) {
     axisBand: { labelAngle: 0, labelOverlap: 'greedy', labelLimit: 140 },
     axisY: { domain: false, ticks: false },
     // Compact numbers (2.6B, not 2.6G); scoped to quantitative axes so category labels stay intact.
-    axisQuantitative: { labelExpr: "replace(format(datum.value, '~s'), 'G', 'B')" },
+    // Compact axis numbers in the user's system: 2.6B or 26 Cr / 45 L.
+    axisQuantitative: {
+      labelExpr:
+        numberFormat === 'indian'
+          ? "abs(datum.value) >= 1e7 ? format(datum.value / 1e7, '.3~') + ' Cr' : abs(datum.value) >= 1e5 ? format(datum.value / 1e5, '.3~') + ' L' : format(datum.value, '~s')"
+          : "replace(format(datum.value, '~s'), 'G', 'B')",
+    },
     legend: { labelColor: ink2, titleColor: ink2, symbolType: 'circle', orient: 'top', labelFontSize: 11, titleFontSize: 11 },
     title: { color: ink, fontSize: 13, fontWeight: 600, anchor: 'start', offset: 12 },
     scale: { bandPaddingInner: 0.3 },

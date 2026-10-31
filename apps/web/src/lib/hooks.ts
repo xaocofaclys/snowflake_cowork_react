@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { AgentInfo, Artifact, Automation, AutomationRun, Dashboard, Me, Memory, Message, Skill, Thread, UserSettings, Workflow } from '@cowork/shared';
+import type { AgentInfo, Artifact, Automation, AutomationRun, Dashboard, Me, Memory, Message, Pin, Skill, Thread, UserSettings, Workflow } from '@cowork/shared';
 import { api } from './api';
 
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api<Me>('/auth/me'), retry: false });
@@ -58,3 +58,21 @@ export const useAutomations = () =>
 
 export const useAutomationRuns = (id?: string) =>
   useQuery({ queryKey: ['automation-runs', id], queryFn: () => api<AutomationRun[]>(`/automations/${id}/runs`), enabled: !!id, refetchInterval: 15_000 });
+
+const DEFAULT_PREFS: UserSettings = { memoryEnabled: true, autoChart: true, responseStyle: 'balanced', numberFormat: 'international', currency: 'USD', accent: 'snow', pins: [] };
+
+/** The signed-in user's preferences (number format, currency, pins, …) with defaults. */
+export function usePrefs(): UserSettings {
+  const { data } = useMe();
+  return data?.settings ?? DEFAULT_PREFS;
+}
+
+export function useTogglePin() {
+  const prefs = usePrefs();
+  const update = useUpdateSettings();
+  const pins = prefs.pins ?? [];
+  return {
+    isPinned: (id: string) => pins.some((p) => p.id === id),
+    toggle: (pin: Pin) => update.mutate({ pins: pins.some((p) => p.id === pin.id) ? pins.filter((p) => p.id !== pin.id) : [pin, ...pins] }),
+  };
+}

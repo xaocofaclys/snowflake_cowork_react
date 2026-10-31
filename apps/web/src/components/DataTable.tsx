@@ -3,15 +3,16 @@
 import { ArrowDown, ArrowUp, Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { TableData } from '@cowork/shared';
+import { usePrefs } from '@/lib/hooks';
 import { IconButton } from './ui';
 
 const PAGE = 50;
 const isNum = (t: string) => /fixed|real|number|float|int|decimal/.test(t);
 
-export function formatCell(v: unknown, type: string): string {
+export function formatCell(v: unknown, type: string, locale?: string): string {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'number' && isNum(type)) {
-    return Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return Number.isInteger(v) ? v.toLocaleString(locale) : v.toLocaleString(locale, { maximumFractionDigits: 2 });
   }
   return String(v);
 }
@@ -32,6 +33,8 @@ export function download(name: string, href: string) {
 }
 
 export function DataTable({ table, maxHeight = 360 }: { table: TableData; maxHeight?: number }) {
+  // Indian format groups digits as 12,34,567.
+  const locale = usePrefs().numberFormat === 'indian' ? 'en-IN' : undefined;
   const [sort, setSort] = useState<{ i: number; dir: 1 | -1 } | null>(null);
   const [page, setPage] = useState(0);
 
@@ -74,7 +77,7 @@ export function DataTable({ table, maxHeight = 360 }: { table: TableData; maxHei
               <tr key={ri} className="border-b border-line last:border-0 hover:bg-panel">
                 {r.map((v, i) => (
                   <td key={i} className={`whitespace-nowrap px-3 py-1.5 ${isNum(table.columns[i]?.type ?? '') ? 'text-right tabular-nums' : ''}`}>
-                    {formatCell(v, table.columns[i]?.type ?? '')}
+                    {formatCell(v, table.columns[i]?.type ?? '', locale)}
                   </td>
                 ))}
               </tr>

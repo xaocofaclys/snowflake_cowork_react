@@ -1,11 +1,13 @@
 'use client';
 
-import { AlertTriangle, ArrowRight, BookMarked, CalendarPlus, Check, Copy, FileText, LayoutDashboard, Sparkle, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { AlertTriangle, ArrowRight, BookMarked, CalendarPlus, Check, Copy, CornerDownRight, FileText, LayoutDashboard, Pencil, RotateCcw, Sparkle, ThumbsDown, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 import { AUTO_AGENT_ID, blocksToText, isWorkflowAgentId, type Automation, type BlockOf, type ContentBlock } from '@cowork/shared';
 import { api } from '@/lib/api';
+import { useChatActions } from '@/lib/chat-actions';
 import { useAgents } from '@/lib/hooks';
+import { useUi } from '@/lib/ui-store';
 import { AutomationEditor } from './AutomationEditor';
 import { AutomationProposalCard } from './AutomationProposalCard';
 import { Markdown } from './Markdown';
@@ -15,9 +17,37 @@ import { IconButton } from './ui';
 import { WorkflowTrace } from './WorkflowTrace';
 
 export function UserMessage({ text }: { text: string }) {
+  const setDraft = useUi((s) => s.setDraft);
+  const [copied, setCopied] = useState(false);
   return (
-    <div className="flex justify-end">
-      <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl bg-raised px-4 py-2.5 text-[15px]">{text}</div>
+    <div className="group animate-fade-up flex flex-col items-end gap-1">
+      <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-accent-soft px-4 py-2.5 text-[15px] text-ink">{text}</div>
+      <div className="flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+        <IconButton label="Edit and resend" onClick={() => setDraft(text)}>
+          <Pencil className="h-3.5 w-3.5" />
+        </IconButton>
+        <IconButton
+          label="Copy"
+          onClick={() => {
+            navigator.clipboard.writeText(text);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+        >
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+        </IconButton>
+      </div>
+    </div>
+  );
+}
+
+/** Placeholder while an answer starts: shaped like the text and result card about to arrive. */
+function AnswerSkeleton() {
+  return (
+    <div className="space-y-2.5 py-1" aria-label="Loading answer">
+      <div className="skeleton h-3.5 w-11/12" />
+      <div className="skeleton h-3.5 w-9/12" />
+      <div className="skeleton mt-3 h-40 w-full rounded-2xl" />
     </div>
   );
 }
@@ -27,6 +57,7 @@ type Item =
   | { kind: 'workflow'; block: BlockOf<'workflow'> }
   | { kind: 'link'; block: BlockOf<'artifact_link'> }
   | { kind: 'proposal'; block: BlockOf<'automation_proposal'> }
+  | { kind: 'suggestions'; items: string[] }
   | { kind: 'result'; group: ResultGroup }
   | { kind: 'error'; message: string };
 
@@ -59,6 +90,7 @@ function layout(blocks: ContentBlock[]) {
     } else if (b.type === 'workflow') items.push({ kind: 'workflow', block: b });
     else if (b.type === 'artifact_link') items.push({ kind: 'link', block: b });
     else if (b.type === 'automation_proposal') items.push({ kind: 'proposal', block: b });
+    else if (b.type === 'suggestions' && b.items.length) items.push({ kind: 'suggestions', items: b.items });
     else if (b.type === 'error') items.push({ kind: 'error', message: b.message });
   }
   return { steps, thinking, items };
@@ -70,17 +102,23 @@ export function AssistantMessage({
   ctx,
   feedback,
   memorySaved,
+  isLast,
 }: {
   blocks: ContentBlock[];
   streaming?: boolean;
   ctx: ResultContext;
   feedback?: 'up' | 'down' | null;
   memorySaved?: string[];
+  /** Latest answer in the conversation: shows follow-up suggestions. */
+  isLast?: boolean;
 }) {
   const { steps, thinking, items } = layout(blocks);
   const lastText = [...items].reverse().find((i) => i.kind === 'text');
+  const openCanvas = useUi((s) => s.openCanvas);
+  const actions = useChatActions();
+  const content = items.filter((i) => i.kind !== 'suggestions');
   return (
-    <div className="group">
+    <div className="group animate-fade-up">
       <Reasoning steps={steps} thinking={thinking} streaming={streaming} />
       {items.map((it, i) =>
         it.kind === 'text' ? (
@@ -94,9 +132,18 @@ export function AssistantMessage({
           <Link
             key={`link-${i}`}
             href={it.block.kind === 'dashboard' ? `/dashboards/${it.block.artifactId}` : `/artifacts/${it.block.artifactId}`}
-            className="my-3 flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 hover:border-ink-3"
+            onClick={(e) => {
+              // Plain click opens the canvas beside the chat; Cmd/Ctrl-click opens the full page.
+              if (e.metaKey || e.ctrlKey || e.shiftKey) return;
+              e.preventDefault();
+              const b = it.block;
+              openCanvas(b.kind === 'dashboard' ? { kind: 'dashboard', id: b.artifactId, title: b.title } : { kind: 'artifact', id: b.artifactId, title: b.title });
+            }}
+            className="group/link my-3 flex items-center gap-3 rounded-2xl border border-line bg-panel px-4 py-3 shadow-soft transition hover:-translate-y-px hover:border-accent/40 hover:shadow-lift"
           >
-            {it.block.kind === 'dashboard' ? <LayoutDashboard className="h-5 w-5 text-accent" /> : <FileText className="h-5 w-5 text-accent" />}
+            <span className="bg-brand flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white">
+              {it.block.kind === 'dashboard' ? <LayoutDashboard className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+            </span>
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{it.block.title}</div>
               <div className="text-xs text-ink-3">
@@ -105,10 +152,25 @@ export function AssistantMessage({
                   : `Saved as a ${it.block.kind}: open it to see every finding, chart and source, refresh the data, or export it`}
               </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-ink-3" />
+            <ArrowRight className="h-4 w-4 text-ink-3 transition group-hover/link:translate-x-0.5 group-hover/link:text-accent" />
           </Link>
         ) : it.kind === 'workflow' ? (
           <WorkflowTrace key={`wf-${i}`} steps={it.block.steps} streaming={streaming} ctx={ctx} />
+        ) : it.kind === 'suggestions' ? (
+          isLast && !streaming && actions ? (
+            <div key="suggestions" className="mt-4 flex flex-col items-start gap-1.5">
+              {it.items.map((q) => (
+                <button
+                  key={q}
+                  onClick={() => actions.send(q)}
+                  className="animate-fade-up inline-flex max-w-full items-center gap-2 rounded-xl border border-line bg-bg px-3 py-1.5 text-left text-[13px] text-ink-2 shadow-soft transition hover:border-accent/40 hover:text-ink"
+                >
+                  <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-accent" />
+                  <span className="truncate">{q}</span>
+                </button>
+              ))}
+            </div>
+          ) : null
         ) : it.kind === 'result' ? (
           <ResultCard key={it.group.toolUseId} group={it.group} ctx={ctx} streaming={streaming} />
         ) : (
@@ -118,7 +180,7 @@ export function AssistantMessage({
           </div>
         ),
       )}
-      {streaming && !items.length && !steps && <div className="caret text-ink-3" />}
+      {streaming && !content.length && <AnswerSkeleton />}
       {!!memorySaved?.length && (
         <Link href="/settings#memory" className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-2.5 py-1 text-xs text-accent">
           <Sparkle className="h-3 w-3" /> Memory updated: {memorySaved.join('; ')}
@@ -167,6 +229,7 @@ function automationDraft(blocks: ContentBlock[], ctx: ResultContext): Partial<Au
 }
 
 function Actions({ blocks, messageId, initial, ctx }: { blocks: ContentBlock[]; messageId: string; initial: 'up' | 'down' | null; ctx: ResultContext }) {
+  const actions = useChatActions();
   const [fb, setFb] = useState(initial);
   const [copied, setCopied] = useState(false);
   const [automating, setAutomating] = useState(false);
@@ -196,6 +259,11 @@ function Actions({ blocks, messageId, initial, ctx }: { blocks: ContentBlock[]; 
       <IconButton label="Bad response" onClick={() => vote('down')} className={fb === 'down' ? 'text-accent' : ''}>
         <ThumbsDown className="h-3.5 w-3.5" />
       </IconButton>
+      {actions && ctx.question && (
+        <IconButton label="Regenerate" onClick={() => actions.send(ctx.question!)}>
+          <RotateCcw className="h-3.5 w-3.5" />
+        </IconButton>
+      )}
       {canAutomate && (
         <IconButton label={scheduled ? 'Automation created' : 'Automate this'} onClick={() => setAutomating(true)} className={scheduled ? 'text-accent' : ''}>
           <CalendarPlus className="h-3.5 w-3.5" />

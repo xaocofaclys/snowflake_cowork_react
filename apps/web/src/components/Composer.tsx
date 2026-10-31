@@ -1,9 +1,10 @@
 'use client';
 
 import clsx from 'clsx';
-import { ArrowUp, Mic, Plus, Square, Telescope, Wand2, X } from 'lucide-react';
+import { ArrowUp, LayoutDashboard, MessageSquareText, Mic, Square, Telescope, Wand2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Skill } from '@cowork/shared';
+import { useUi, type ChatMode } from '@/lib/ui-store';
 
 /** Expands "/skill rest of text" using the skill's prompt ({{input}} is replaced by the rest). */
 export function expandSkill(text: string, skills: Skill[]): string {
@@ -14,17 +15,24 @@ export function expandSkill(text: string, skills: Skill[]): string {
   return skill.prompt.includes('{{input}}') ? skill.prompt.replaceAll('{{input}}', rest) : rest ? `${skill.prompt}\n\n${rest}` : skill.prompt;
 }
 
+const MODES: { key: ChatMode; label: string; icon: typeof Telescope; hint: string; placeholder: string }[] = [
+  { key: 'chat', label: 'Ask', icon: MessageSquareText, hint: 'Ask a question about your data', placeholder: 'Ask anything about your data…' },
+  { key: 'research', label: 'Deep research', icon: Telescope, hint: 'Plans sub-questions, researches them in parallel, writes a cited report', placeholder: 'What should be researched? e.g. Why did follow-through drop in the South?' },
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, hint: 'Builds a live, filterable dashboard', placeholder: 'Describe the dashboard: metrics, breakdowns, filters…' },
+];
+
 export function Composer({
   onSend,
   onStop,
   streaming,
   skills,
   left,
-  placeholder = 'Ask anything about your data…',
+  placeholder,
   autoFocus,
-  research,
-  onResearchChange,
+  mode = 'chat',
+  onModeChange,
   initialText = '',
+  size = 'md',
 }: {
   onSend: (text: string) => void;
   onStop: () => void;
@@ -33,27 +41,40 @@ export function Composer({
   left?: ReactNode;
   placeholder?: string;
   autoFocus?: boolean;
-  /** Deep research toggle (shown in the + menu when provided). */
-  research?: boolean;
-  onResearchChange?: (on: boolean) => void;
+  mode?: ChatMode;
+  onModeChange?: (m: ChatMode) => void;
   initialText?: string;
+  size?: 'md' | 'lg';
 }) {
   const [text, setText] = useState(initialText);
   const [sel, setSel] = useState(0);
   const [listening, setListening] = useState(false);
-  const [menu, setMenu] = useState(false);
   const ta = useRef<HTMLTextAreaElement>(null);
   const recog = useRef<{ stop: () => void } | null>(null);
+  const draft = useUi((s) => s.draft);
+
+  // Text pushed from elsewhere (chart click, edit & resend, command palette).
+  useEffect(() => {
+    if (!draft.nonce) return;
+    setText(draft.text);
+    if (draft.mode && onModeChange) onModeChange(draft.mode);
+    requestAnimationFrame(() => {
+      ta.current?.focus();
+      ta.current?.setSelectionRange(draft.text.length, draft.text.length);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.nonce]);
 
   useEffect(() => {
     const el = ta.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
   }, [text]);
 
   const slash = text.match(/^\/([a-z0-9-]*)$/);
   const matches = useMemo(() => (slash ? skills.filter((s) => s.name.startsWith(slash[1])).slice(0, 6) : []), [slash, skills]);
+  const current = MODES.find((m) => m.key === mode) ?? MODES[0];
 
   const submit = () => {
     const t = text.trim();
@@ -81,7 +102,7 @@ export function Composer({
   return (
     <div className="relative">
       {matches.length > 0 && (
-        <div className="absolute bottom-full left-0 z-20 mb-2 w-80 rounded-xl border border-line bg-bg p-1 shadow-lg">
+        <div className="animate-fade-up absolute bottom-full left-0 z-20 mb-2 w-80 rounded-xl border border-line bg-bg p-1 shadow-lift">
           {matches.map((s, i) => (
             <button
               key={s.id}
@@ -100,13 +121,18 @@ export function Composer({
           ))}
         </div>
       )}
-      <div className="rounded-2xl border border-line bg-bg shadow-sm focus-within:border-ink-3">
+      <div
+        className={clsx(
+          'rounded-2xl border bg-bg shadow-soft transition focus-within:shadow-lift',
+          mode === 'chat' ? 'border-line focus-within:border-ink-3/40' : 'border-accent/50 ring-4 ring-accent/10',
+        )}
+      >
         <textarea
           ref={ta}
-          rows={1}
+          rows={size === 'lg' ? 2 : 1}
           autoFocus={autoFocus}
           value={text}
-          placeholder={placeholder}
+          placeholder={placeholder ?? current.placeholder}
           onChange={(e) => {
             setText(e.target.value);
             setSel(0);
@@ -123,46 +149,32 @@ export function Composer({
               submit();
             }
           }}
-          className="block max-h-56 w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-[15px] outline-none placeholder:text-ink-3"
-        />
-        <div className="flex items-center gap-1 px-2 pb-2">
-          {onResearchChange && (
-            <div className="relative">
-              <button
-                type="button"
-                aria-label="More options"
-                onClick={() => setMenu((m) => !m)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-ink-3 hover:bg-raised"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-              {menu && (
-                <div className="absolute bottom-full left-0 z-30 mb-2 w-72 rounded-xl border border-line bg-bg p-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onResearchChange(!research);
-                      setMenu(false);
-                    }}
-                    className="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left hover:bg-raised"
-                  >
-                    <Telescope className="mt-0.5 h-4 w-4 text-accent" />
-                    <div>
-                      <div className="text-sm font-medium">Deep research {research ? '(on)' : ''}</div>
-                      <div className="text-xs text-ink-3">Plans sub-questions, researches them in parallel and writes a cited report</div>
-                    </div>
-                  </button>
-                </div>
-              )}
-            </div>
+          className={clsx(
+            'block max-h-60 w-full resize-none bg-transparent px-4 outline-none placeholder:text-ink-3',
+            size === 'lg' ? 'pb-2 pt-4 text-base' : 'pb-1 pt-3.5 text-[15px]',
           )}
-          {research && onResearchChange && (
-            <span className="inline-flex h-7 items-center gap-1 rounded-full bg-accent-soft pl-2.5 pr-1 text-xs font-medium text-accent">
-              <Telescope className="h-3.5 w-3.5" /> Deep research
-              <button type="button" aria-label="Turn off deep research" onClick={() => onResearchChange(false)} className="rounded-full p-0.5 hover:bg-accent/10">
-                <X className="h-3 w-3" />
-              </button>
-            </span>
+        />
+        <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
+          {onModeChange && (
+            <div role="radiogroup" aria-label="Mode" className="flex items-center gap-0.5 rounded-xl bg-raised/70 p-0.5">
+              {MODES.map((m) => (
+                <button
+                  key={m.key}
+                  role="radio"
+                  aria-checked={mode === m.key}
+                  type="button"
+                  title={m.hint}
+                  onClick={() => onModeChange(m.key)}
+                  className={clsx(
+                    'inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition',
+                    mode === m.key ? 'bg-bg text-ink shadow-soft' : 'text-ink-3 hover:text-ink-2',
+                  )}
+                >
+                  <m.icon className={clsx('h-3.5 w-3.5', mode === m.key && 'text-accent')} />
+                  <span className={clsx(m.key !== 'chat' && 'hidden sm:inline')}>{m.label}</span>
+                </button>
+              ))}
+            </div>
           )}
           {left}
           <div className="ml-auto flex items-center gap-1">
@@ -171,7 +183,7 @@ export function Composer({
               onClick={voice}
               aria-label="Voice input"
               title="Voice input"
-              className={clsx('inline-flex h-8 w-8 items-center justify-center rounded-lg hover:bg-raised', listening ? 'text-danger' : 'text-ink-3')}
+              className={clsx('inline-flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-raised', listening ? 'animate-pulse text-danger' : 'text-ink-3')}
             >
               <Mic className="h-4 w-4" />
             </button>
@@ -184,7 +196,7 @@ export function Composer({
                 onClick={submit}
                 disabled={!text.trim()}
                 aria-label="Send"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-accent-ink disabled:opacity-30"
+                className="bg-brand inline-flex h-8 w-8 items-center justify-center rounded-lg text-white shadow-soft transition hover:opacity-95 disabled:opacity-30"
               >
                 <ArrowUp className="h-4 w-4" />
               </button>

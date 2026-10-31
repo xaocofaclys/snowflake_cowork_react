@@ -3,7 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { Brain, Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
-import type { Memory } from '@cowork/shared';
+import type { AccentKey, Memory, UserSettings } from '@cowork/shared';
 import { APP_NAME } from '@cowork/shared';
 import { PageHeader } from '@/components/PageHeader';
 import { Button, IconButton, inputCls } from '@/components/ui';
@@ -33,10 +33,10 @@ export default function SettingsPage() {
           </Row>
         </Section>
 
-        <Section title="Preferences">
+        <Section title="Answers" hint="Applied to every agent, workflow and report">
           <Row label="Default agent">
-            <select className={`${inputCls} !w-72`} value={s.defaultAgentId ?? ''} onChange={(e) => update.mutate({ defaultAgentId: e.target.value || undefined })}>
-              <option value="">First available</option>
+            <select className={`${inputCls} !w-64`} value={s.defaultAgentId ?? ''} onChange={(e) => update.mutate({ defaultAgentId: e.target.value || undefined })}>
+              <option value="">Auto (pick per question)</option>
               {agents.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.displayName}
@@ -44,12 +44,38 @@ export default function SettingsPage() {
               ))}
             </select>
           </Row>
-          <Row label="Theme">
-            <select className={`${inputCls} !w-40`} value={mode} onChange={(e) => setMode(e.target.value as 'light' | 'dark' | 'system')}>
-              <option value="system">System</option>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
+          <Row label="Response style">
+            <Segmented
+              value={s.responseStyle ?? 'balanced'}
+              options={[
+                ['concise', 'Concise'],
+                ['balanced', 'Balanced'],
+                ['detailed', 'Detailed'],
+              ]}
+              onChange={(v) => update.mutate({ responseStyle: v as UserSettings['responseStyle'] })}
+            />
+          </Row>
+          <Row label="Numbers">
+            <Segmented
+              value={s.numberFormat ?? 'international'}
+              options={[
+                ['international', '2.6M · 1.2B'],
+                ['indian', '26 L · 120 Cr'],
+              ]}
+              onChange={(v) => update.mutate({ numberFormat: v as UserSettings['numberFormat'] })}
+            />
+          </Row>
+          <Row label="Currency">
+            <Segmented
+              value={s.currency ?? 'USD'}
+              options={[
+                ['USD', '$'],
+                ['INR', '₹'],
+                ['EUR', '€'],
+                ['GBP', '£'],
+              ]}
+              onChange={(v) => update.mutate({ currency: v as UserSettings['currency'] })}
+            />
           </Row>
           <Toggle
             label="Auto-chart results"
@@ -57,6 +83,42 @@ export default function SettingsPage() {
             checked={s.autoChart}
             onChange={(v) => update.mutate({ autoChart: v })}
           />
+        </Section>
+
+        <Section title="Appearance">
+          <Row label="Theme">
+            <Segmented
+              value={mode}
+              options={[
+                ['light', 'Light'],
+                ['dark', 'Dark'],
+                ['system', 'System'],
+              ]}
+              onChange={(v) => setMode(v as 'light' | 'dark' | 'system')}
+            />
+          </Row>
+          <Row label="Accent">
+            <div className="flex gap-2">
+              {ACCENTS.map(([key, label, color]) => (
+                <button
+                  key={key}
+                  title={label}
+                  aria-label={`${label} accent`}
+                  onClick={() => {
+                    document.documentElement.dataset.accent = key;
+                    update.mutate({ accent: key });
+                  }}
+                  className={`h-7 w-7 rounded-full ring-offset-2 ring-offset-bg transition hover:scale-110 ${(s.accent ?? 'snow') === key ? 'ring-2 ring-ink-3' : ''}`}
+                  style={{ background: color }}
+                />
+              ))}
+            </div>
+          </Row>
+          <Row label="Welcome tour">
+            <Button size="sm" variant="ghost" onClick={() => update.mutate({ onboarded: false })}>
+              Show again
+            </Button>
+          </Row>
         </Section>
 
         <div id="memory">
@@ -174,18 +236,48 @@ function MemoryRow({ memory, onChange }: { memory: Memory; onChange: () => void 
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+const ACCENTS: [AccentKey, string, string][] = [
+  ['snow', 'Snow', 'linear-gradient(135deg,#1f6fd1,#4fb3e8)'],
+  ['glacier', 'Glacier', 'linear-gradient(135deg,#0e8a8c,#45c4c0)'],
+  ['aurora', 'Aurora', 'linear-gradient(135deg,#178f60,#5fd39c)'],
+  ['violet', 'Violet', 'linear-gradient(135deg,#5b49d0,#a394f2)'],
+  ['rose', 'Rose', 'linear-gradient(135deg,#cf2f68,#f48fb1)'],
+  ['amber', 'Amber', 'linear-gradient(135deg,#b86e00,#f2b84b)'],
+];
+
+function Segmented({ value, options, onChange }: { value: string; options: [string, string][]; onChange: (v: string) => void }) {
   return (
-    <section>
-      <h2 className="mb-2 text-sm font-semibold">{title}</h2>
-      <div className="rounded-xl border border-line p-4">{children}</div>
+    <div role="radiogroup" className="inline-flex rounded-xl bg-raised p-0.5">
+      {options.map(([v, label]) => (
+        <button
+          key={v}
+          role="radio"
+          aria-checked={value === v}
+          onClick={() => onChange(v)}
+          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${value === v ? 'bg-bg text-ink shadow-soft' : 'text-ink-3 hover:text-ink-2'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <section className="animate-fade-up">
+      <div className="mb-2 flex items-baseline gap-2">
+        <h2 className="text-sm font-semibold">{title}</h2>
+        {hint && <span className="text-xs text-ink-3">{hint}</span>}
+      </div>
+      <div className="divide-y divide-line rounded-2xl border border-line bg-panel px-4 py-1 shadow-soft">{children}</div>
     </section>
   );
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-1.5 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
       <span className="text-ink-2">{label}</span>
       <span>{children}</span>
     </div>

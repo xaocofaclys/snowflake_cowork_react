@@ -119,10 +119,28 @@ export interface Skill {
   updatedAt: string;
 }
 
+export type ResponseStyle = 'concise' | 'balanced' | 'detailed';
+export type AccentKey = 'snow' | 'glacier' | 'aurora' | 'violet' | 'rose' | 'amber';
+
+/** Pinned to the home workspace. */
+export interface Pin {
+  kind: 'dashboard' | 'artifact';
+  id: string;
+  title: string;
+}
+
 export interface UserSettings {
   memoryEnabled: boolean;
   defaultAgentId?: string;
   autoChart: boolean;
+  /** Applied to every agent's answers. */
+  responseStyle?: ResponseStyle;
+  numberFormat?: 'international' | 'indian';
+  currency?: 'USD' | 'INR' | 'EUR' | 'GBP';
+  accent?: AccentKey;
+  pins?: Pin[];
+  /** First-run welcome tour seen. */
+  onboarded?: boolean;
 }
 
 export interface Permissions {

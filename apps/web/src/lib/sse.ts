@@ -3,7 +3,7 @@ import { API_URL, ApiError } from './api';
 
 /** POSTs a chat turn and calls onEvent for each normalized SSE event until the stream ends. */
 export function streamChat(
-  body: { threadId?: string; agentId: string; text: string; mode?: 'chat' | 'research' },
+  body: { threadId?: string; agentId: string; text: string; mode?: 'chat' | 'research' | 'dashboard' },
   onEvent: (ev: StreamEvent) => void,
   signal: AbortSignal,
 ): Promise<void> {

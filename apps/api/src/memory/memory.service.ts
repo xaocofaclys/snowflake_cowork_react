@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
-import type { Memory, MemoryCategory } from '@cowork/shared';
+import type { Memory, MemoryCategory, UserSettings } from '@cowork/shared';
 import { CacheService } from '../common/cache.service';
 import { newId, nowIso } from '../common/ids';
 import { QueueService } from '../common/queue.service';
@@ -115,11 +115,23 @@ export class MemoryService implements OnModuleInit {
     return scored.sort((a, b) => b.score - a.score).slice(0, MAX_INJECTED).map((s) => s.m);
   }
 
-  formatContext(memories: Memory[]): string {
-    if (!memories.length) return '';
-    return `<user_context>\nKnown about this user (apply when relevant, do not mention unless asked):\n${memories
-      .map((m) => `- ${m.text}`)
-      .join('\n')}\n</user_context>\n\n`;
+  /** Memories plus the user's answer preferences, prepended to the agent's input. */
+  formatContext(memories: Memory[], prefs: Partial<UserSettings> = {}): string {
+    const style =
+      prefs.responseStyle === 'concise'
+        ? 'Answer briefly: the key result in 1-3 sentences, no extra commentary.'
+        : prefs.responseStyle === 'detailed'
+          ? 'Answer in depth: explain the result, notable patterns and caveats.'
+          : '';
+    const numbers =
+      prefs.numberFormat === 'indian'
+        ? `Write large numbers in lakh/crore (e.g. 2.6 Cr, 45 L)${prefs.currency === 'INR' ? ' and money in ₹' : ''}.`
+        : prefs.currency && prefs.currency !== 'USD'
+          ? `Show money in ${prefs.currency}.`
+          : '';
+    const lines = [...memories.map((m) => `- ${m.text}`), ...(style ? [`- ${style}`] : []), ...(numbers ? [`- ${numbers}`] : [])];
+    if (!lines.length) return '';
+    return `<user_context>\nKnown about this user and how they want answers (apply when relevant, do not mention unless asked):\n${lines.join('\n')}\n</user_context>\n\n`;
   }
 
   /** Background job: pull new durable facts out of a finished turn. Returns the saved texts. */
