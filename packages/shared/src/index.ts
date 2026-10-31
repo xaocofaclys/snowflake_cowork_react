@@ -7,3 +7,4 @@ export * from './cron';
 export * from './brand';
 export * from './dashboards';
 export * from './insights';
+export * from './route';

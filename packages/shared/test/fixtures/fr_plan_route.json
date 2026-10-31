@@ -1,0 +1,325 @@
+{
+ "applied_adjustments": [],
+ "breaks": [],
+ "day_end_limit": "18:00",
+ "first_name": "Shubham",
+ "free_windows": [
+  {
+   "from": "12:50",
+   "minutes": 34,
+   "to": "14:00"
+  },
+  {
+   "from": "14:15",
+   "minutes": 103,
+   "to": "16:00"
+  }
+ ],
+ "leave_start_location_at": "10:57",
+ "map": {
+  "full_route_url": "https://www.google.com/maps/dir/12.9352,77.6245/12.93397,77.61887/12.92712,77.6238/12.92993,77.58767/12.91979,77.58632/12.97279,77.64464/12.97034,77.64148",
+  "geojson": {
+   "features": [
+    {
+     "geometry": {
+      "coordinates": [
+       [
+        77.6245,
+        12.9352
+       ],
+       [
+        77.61887,
+        12.93397
+       ],
+       [
+        77.6238,
+        12.92712
+       ],
+       [
+        77.58767,
+        12.92993
+       ],
+       [
+        77.58632,
+        12.91979
+       ],
+       [
+        77.64464,
+        12.97279
+       ],
+       [
+        77.64148,
+        12.97034
+       ]
+      ],
+      "type": "LineString"
+     },
+     "properties": {
+      "name": "route"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.6245,
+       12.9352
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "label": "Start",
+      "name": "Koramangala Office"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.61887,
+       12.93397
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "arrive": "11:00",
+      "label": "A",
+      "name": "Dr. Mohan Bhat"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.6238,
+       12.92712
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "arrive": "11:29",
+      "label": "B",
+      "name": "Dr. Sneha Shetty"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.58767,
+       12.92993
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "arrive": "12:00",
+      "label": "C",
+      "name": "Dr. Anita Kapoor"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.58632,
+       12.91979
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "arrive": "12:30",
+      "label": "D",
+      "name": "Dr. Kavya Gowda"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.64464,
+       12.97279
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "arrive": "14:00",
+      "label": "E",
+      "name": "Dr. Deepa Joshi"
+     },
+     "type": "Feature"
+    },
+    {
+     "geometry": {
+      "coordinates": [
+       77.64148,
+       12.97034
+      ],
+      "type": "Point"
+     },
+     "properties": {
+      "arrive": "16:00",
+      "label": "F",
+      "name": "Dr. Meera Shetty"
+     },
+     "type": "Feature"
+    }
+   ],
+   "type": "FeatureCollection"
+  },
+  "note": "Estimates: straight-line x1.4 at ~20 km/h. Render geojson with Leaflet + OpenStreetMap tiles (free, no API key)."
+ },
+ "plan_date": "2026-10-31",
+ "rep_id": "R001",
+ "rep_name": "Shubham Sharma",
+ "shift_start": "08:30",
+ "start_location": "Koramangala Office",
+ "stops": [
+  {
+   "address": "140, Koramangala Main Road, Bangalore",
+   "area": "Koramangala",
+   "arrive": "11:00",
+   "clinic": "Sakra Koramangala",
+   "clinic_hours": "11:00-14:00",
+   "depart": "11:25",
+   "focus_product": "Cardiozen",
+   "hcp_id": "H008",
+   "hcp_name": "Dr. Mohan Bhat",
+   "lat": 12.93397,
+   "leg_map_url": "https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=12.9352%2C77.6245%3B12.933970%2C77.618870",
+   "lon": 77.61887,
+   "objective": "Relationship call",
+   "priority": "High",
+   "specialty": "Cardiologist",
+   "stop": "A",
+   "tier": "A",
+   "time_on_site_min": 25,
+   "travel_km": 0.9,
+   "travel_min": 3,
+   "wait_min": 0
+  },
+  {
+   "address": "121, Koramangala Main Road, Bangalore",
+   "area": "Koramangala",
+   "arrive": "11:29",
+   "clinic": "Narayana Health Koramangala",
+   "clinic_hours": "11:00-14:00",
+   "depart": "11:44",
+   "focus_product": "Glucofirm XR",
+   "hcp_id": "H056",
+   "hcp_name": "Dr. Sneha Shetty",
+   "lat": 12.92712,
+   "leg_map_url": "https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=12.93397%2C77.61887%3B12.927120%2C77.623800",
+   "lon": 77.6238,
+   "objective": "Address competitor switch",
+   "priority": "Low",
+   "specialty": "Endocrinologist",
+   "stop": "B",
+   "tier": "C",
+   "time_on_site_min": 15,
+   "travel_km": 1.3,
+   "travel_min": 4,
+   "wait_min": 0
+  },
+  {
+   "address": "26, Jayanagar Main Road, Bangalore",
+   "area": "Jayanagar",
+   "arrive": "12:00",
+   "clinic": "City Care Clinic Jayanagar",
+   "clinic_hours": "11:00-14:00",
+   "depart": "12:25",
+   "focus_product": "Cardiozen",
+   "hcp_id": "H030",
+   "hcp_name": "Dr. Anita Kapoor",
+   "lat": 12.92993,
+   "leg_map_url": "https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=12.92712%2C77.6238%3B12.929930%2C77.587670",
+   "lon": 77.58767,
+   "objective": "Follow-up on samples",
+   "priority": "High",
+   "specialty": "General Physician",
+   "stop": "C",
+   "tier": "A",
+   "time_on_site_min": 25,
+   "travel_km": 5.5,
+   "travel_min": 16,
+   "wait_min": 0
+  },
+  {
+   "address": "186, Jayanagar Main Road, Bangalore",
+   "area": "Jayanagar",
+   "arrive": "12:30",
+   "clinic": "Sri Sai Clinic Jayanagar",
+   "clinic_hours": "11:00-14:00",
+   "depart": "12:50",
+   "focus_product": "Glucofirm XR",
+   "hcp_id": "H042",
+   "hcp_name": "Dr. Kavya Gowda",
+   "lat": 12.91979,
+   "leg_map_url": "https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=12.92993%2C77.58767%3B12.919790%2C77.586320",
+   "lon": 77.58632,
+   "objective": "Address competitor switch",
+   "priority": "Medium",
+   "specialty": "Diabetologist",
+   "stop": "D",
+   "tier": "B",
+   "time_on_site_min": 20,
+   "travel_km": 1.6,
+   "travel_min": 5,
+   "wait_min": 0
+  },
+  {
+   "address": "46, Indiranagar Main Road, Bangalore",
+   "area": "Indiranagar",
+   "arrive": "14:00",
+   "clinic": "Fortis Indiranagar",
+   "clinic_hours": "14:00-18:00",
+   "depart": "14:15",
+   "focus_product": "Respira Duo",
+   "hcp_id": "H040",
+   "hcp_name": "Dr. Deepa Joshi",
+   "lat": 12.97279,
+   "leg_map_url": "https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=12.91979%2C77.58632%3B12.972790%2C77.644640",
+   "lon": 77.64464,
+   "objective": "Medical education / CME invite",
+   "priority": "Medium",
+   "specialty": "Pulmonologist",
+   "stop": "E",
+   "tier": "B",
+   "time_on_site_min": 15,
+   "travel_km": 12.1,
+   "travel_min": 36,
+   "wait_min": 34
+  },
+  {
+   "address": "6, Indiranagar Main Road, Bangalore",
+   "area": "Indiranagar",
+   "arrive": "16:00",
+   "clinic": "Narayana Health Indiranagar",
+   "clinic_hours": "16:00-19:30",
+   "depart": "16:20",
+   "focus_product": "Cardiozen",
+   "hcp_id": "H004",
+   "hcp_name": "Dr. Meera Shetty",
+   "lat": 12.97034,
+   "leg_map_url": "https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=12.97279%2C77.64464%3B12.970340%2C77.641480",
+   "lon": 77.64148,
+   "objective": "Detailing - new indication",
+   "priority": "Medium",
+   "specialty": "Cardiologist",
+   "stop": "F",
+   "tier": "B",
+   "time_on_site_min": 20,
+   "travel_km": 0.6,
+   "travel_min": 2,
+   "wait_min": 103
+  }
+ ],
+ "totals": {
+  "drive_km": 22,
+  "drive_min": 66,
+  "face_time_min": 120,
+  "finish_time": "16:20",
+  "visits": 6,
+  "wait_min": 137
+ },
+ "unscheduled": []
+}

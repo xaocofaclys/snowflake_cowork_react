@@ -64,6 +64,8 @@ const schema = z.object({
   EMAIL_INTEGRATION: z.string().default('COWORK_EMAIL'),
   EMBED_MODEL: z.string().default('snowflake-arctic-embed-m-v1.5'),
   ARTIFACT_CACHE_TTL: z.coerce.number().default(300),
+  /** Route planner agent; its FR_* procedures and tables live in the same schema. */
+  PLANNER_AGENT: z.string().default('DEV_REACT_COWORK.AGENTS.FIELD_REP_DAY_PLANNER'),
 });
 
 export type Env = z.infer<typeof schema>;

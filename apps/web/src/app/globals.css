@@ -159,3 +159,61 @@ body {
   .print-avoid { break-inside: avoid; }
   body { background: #fff !important; }
 }
+
+/* ---------- Route planner map ---------- */
+.rp-map { background: var(--canvas); font-family: var(--font-sans); }
+.rp-map .leaflet-control-attribution { background: color-mix(in srgb, var(--bg) 80%, transparent); color: var(--ink-3); font-size: 10px; border-radius: 6px 0 0 0; }
+.rp-map .leaflet-control-attribution a { color: var(--ink-2); }
+.rp-map .leaflet-bar { border: 1px solid var(--line); box-shadow: var(--shadow-soft); border-radius: 10px; overflow: hidden; }
+.rp-map .leaflet-bar a { background: var(--bg); color: var(--ink-2); border-color: var(--line); }
+.rp-map .leaflet-bar a:hover { background: var(--raised); color: var(--ink); }
+
+.rp-icon { background: none; border: none; }
+.rp-pin {
+  position: relative; width: 34px; height: 34px; margin: 0 1px;
+  border-radius: 50% 50% 50% 4px; transform: rotate(-45deg);
+  background: var(--accent); border: 2.5px solid var(--bg);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.25), 0 8px 20px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.rp-pin span { position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(45deg); color: #fff; font-weight: 700; font-size: 14px; }
+.rp-pin i { position: absolute; right: -3px; top: -3px; width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--bg); }
+.rp-pin.is-hot { transform: rotate(-45deg) scale(1.12); }
+.rp-pin.is-selected { transform: rotate(-45deg) scale(1.22); box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 28%, transparent), 0 8px 20px -6px rgb(0 0 0 / 0.4); }
+.rp-pin.is-added, .rp-pin.is-moved, .rp-pin.is-retimed { animation: rp-flash 1.4s ease-out 3; }
+.rp-pin.is-added { --flash: #22c55e; }
+.rp-pin.is-moved { --flash: #f59e0b; }
+.rp-pin.is-retimed { --flash: var(--accent-2); }
+@keyframes rp-flash { 0% { box-shadow: 0 0 0 0 var(--flash); } 100% { box-shadow: 0 0 0 16px transparent; } }
+.rp-time {
+  position: absolute; left: 50%; top: 40px; transform: translateX(-50%); white-space: nowrap;
+  padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; font-variant-numeric: tabular-nums;
+  background: var(--bg); color: var(--ink-2); border: 1px solid var(--line); box-shadow: var(--shadow-soft);
+}
+.rp-dot {
+  width: 14px; height: 14px; margin: 2px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--tier) 22%, var(--bg)); border: 2px solid var(--tier);
+  color: var(--tier); font: 700 9px/1 var(--font-sans); cursor: pointer; transition: transform 0.15s ease;
+}
+.rp-dot:hover { transform: scale(1.35); }
+.rp-dot.is-missed { border-style: dashed; background: var(--bg); }
+.rp-dot.is-selected { transform: scale(1.5); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tier) 30%, transparent); }
+.rp-office {
+  width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--ink); color: var(--bg); border: 2.5px solid var(--bg); box-shadow: var(--shadow-lift);
+}
+.rp-chevron {
+  width: 14px; height: 14px; display: grid; place-items: center;
+  background: no-repeat center/10px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 1l5 4-5 4' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+.rp-me { width: 22px; height: 22px; border-radius: 50%; background: #22c55e; border: 3px solid #fff; box-shadow: 0 0 0 0 rgb(34 197 94 / 0.6); animation: rp-ping 1.6s ease-out infinite; }
+@keyframes rp-ping { 0% { box-shadow: 0 0 0 0 rgb(34 197 94 / 0.55); } 100% { box-shadow: 0 0 0 14px transparent; } }
+.leaflet-tooltip.rp-tip {
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px;
+  box-shadow: var(--shadow-lift); padding: 6px 9px; font: 12px/1.45 var(--font-sans);
+}
+.leaflet-tooltip.rp-tip::before { display: none; }
+.rp-hatch { background-image: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--ink-3) 35%, transparent) 4px 5px); }
+@media (prefers-reduced-motion: reduce) { .rp-pin, .rp-me { animation: none !important; transition: none; } }
+.planner-md .prose-chat table { font-size: 11.5px; white-space: nowrap; }
+.planner-md .prose-chat th, .planner-md .prose-chat td { padding: 3px 7px; }

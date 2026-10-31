@@ -123,8 +123,10 @@ Users whose **default role** is `COWORK_USER` can now open the URL and log in wi
 
 ## 4.5 Releasing a new version
 
-> **Status (2026-10-24):** `v3` images (phase 2 + 3) are pushed. Going live = run `06_phase2.sql` **PART C** as
-> `COWORK_APP_SERVICE`. Auto start/stop (**PART B**) is intentionally postponed. Grants A1–A3 and A5 are done.
+> **Status (2026-10-31):** `v1`–`v4` images are pushed; the service is suspended. **Next release: `v6`** (includes
+> v4.1 and v5). Run `TAG=v6 ./deploy/spcs/build_push.sh` (Docker Desktop running), then **PART B** of
+> `snowflake/10_release_v6.sql`. PART A (Route Planner grants) is done. Roll back with `07_release_v4.sql`.
+> Auto start/stop (`06_phase2.sql` PART B) is still postponed.
 
 
 ```bash

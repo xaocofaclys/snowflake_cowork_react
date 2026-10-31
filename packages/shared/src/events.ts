@@ -1,4 +1,5 @@
 import type { AutomationProposal } from './models';
+import type { RoutePlan } from './route';
 /**
  * Normalized stream events. The API converts raw Cortex Agents SSE events
  * (response.text.delta, response.chart, response.table, ...) into these and
@@ -50,6 +51,8 @@ export type StreamEvent =
       sql?: string;
       sqlExplanation?: string;
       text?: string;
+      /** Parsed JSON a generic (procedure) tool returned. */
+      output?: unknown;
     }
   | { type: 'tool_status'; toolUseId: string; status: string; message: string }
   | {
@@ -93,6 +96,8 @@ export type StreamEvent =
   | { type: 'automation_proposal'; proposal: AutomationProposal }
   /** Suggested next questions for this answer. */
   | { type: 'suggestions'; items: string[] }
+  /** Route planner: the agent produced or changed a day plan. */
+  | { type: 'route_plan'; plan: RoutePlan }
   | { type: 'done'; messageId: string };
 
 export type StreamEventType = StreamEvent['type'];

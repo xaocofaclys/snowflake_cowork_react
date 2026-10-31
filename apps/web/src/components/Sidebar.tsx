@@ -16,6 +16,7 @@ import {
   Pin,
   PinOff,
   Plus,
+  Route,
   Search,
   Settings,
   Sun,
@@ -70,6 +71,7 @@ export function Sidebar({ onCollapse, onNavigate }: { onCollapse?: () => void; o
 
   const nav = [
     { href: '/', label: 'Home', icon: House, exact: true },
+    { href: '/planner', label: 'Route Planner', icon: Route },
     { href: '/artifacts', label: 'Artifacts', icon: Bookmark },
     { href: '/workflows', label: 'Workflows', icon: Workflow },
     { href: '/automations', label: 'Automations', icon: CalendarClock },

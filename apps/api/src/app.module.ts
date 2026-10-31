@@ -15,6 +15,7 @@ import { AutomationsModule } from './automations/automations.module';
 import { DashboardsModule } from './dashboards/dashboards.module';
 import { ResearchModule } from './research/research.module';
 import { WorkflowsModule } from './workflows/workflows.module';
+import { PlannerModule } from './planner/planner.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { WorkflowsModule } from './workflows/workflows.module';
     ResearchModule,
     DashboardsModule,
     AutomationsModule,
+    PlannerModule,
   ],
   controllers: [HealthController],
 })

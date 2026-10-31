@@ -47,6 +47,8 @@ docs/            documentation
 5. [Operations](docs/05-operations.md): health checks, troubleshooting, security
 6. [Workflows](docs/06-workflows.md): combine Snowflake agents into one chatbot
 7. [Deep research, dashboards, automations, export](docs/07-research-dashboards-automations.md)
+8. [The Flurry experience](docs/08-experience.md)
+9. [Route Planner](docs/09-route-planner.md): plan a field rep's day on an interactive map with the planner agent
 
 ## Tests
 

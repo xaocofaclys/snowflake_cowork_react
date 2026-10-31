@@ -1,24 +1,7 @@
 'use client';
 
 import clsx from 'clsx';
-import {
-  BarChart3,
-  Bookmark,
-  CalendarClock,
-  CornerDownLeft,
-  FileText,
-  LayoutDashboard,
-  MessageSquare,
-  Moon,
-  Plus,
-  Search,
-  Settings,
-  Sun,
-  Telescope,
-  Wand2,
-  Workflow,
-  type LucideIcon,
-} from 'lucide-react';
+import { BarChart3, Bookmark, CalendarClock, CornerDownLeft, FileText, LayoutDashboard, MessageSquare, Moon, Plus, Route, Search, Settings, Sun, Telescope, Wand2, Workflow, type LucideIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useArtifacts, useDashboards, useSkills, useThreads, useWorkflows } from '@/lib/hooks';
@@ -99,6 +82,7 @@ export function CommandPalette() {
       { id: 'a-research', group: 'Actions', label: 'Start a deep research', icon: Telescope, run: startMode('research'), keywords: 'report analysis' },
       { id: 'a-dash', group: 'Actions', label: 'Build a dashboard', icon: LayoutDashboard, run: startMode('dashboard'), keywords: 'kpi power bi' },
       { id: 'a-auto', group: 'Actions', label: 'New automation', hint: 'Schedule a report', icon: CalendarClock, run: go('/automations'), keywords: 'schedule email' },
+      { id: 'a-route', group: 'Actions', label: 'Plan a route', hint: 'Route Planner', icon: Route, run: go('/planner'), keywords: 'map day field rep visits doctors' },
       { id: 'a-wf', group: 'Actions', label: 'Open workflows', icon: Workflow, run: go('/workflows'), keywords: 'combine agents' },
       { id: 'a-art', group: 'Actions', label: 'Open artifacts', icon: Bookmark, run: go('/artifacts') },
       { id: 'a-set', group: 'Actions', label: 'Settings', icon: Settings, run: go('/settings'), keywords: 'preferences memory accent' },

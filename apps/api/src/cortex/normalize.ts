@@ -37,13 +37,23 @@ function annotation(a: any): Annotation {
   };
 }
 
-/** Pulls the generated SQL and explanation out of a tool_result's content. */
-function toolResultSql(content: any[]): { sql?: string; sqlExplanation?: string; text?: string } {
+/** Pulls the generated SQL and explanation (Analyst) or the returned value (procedures) out of a tool_result. */
+function toolResultSql(content: any[]): { sql?: string; sqlExplanation?: string; text?: string; output?: unknown } {
   for (const c of content ?? []) {
     const j = c?.json ?? (c?.type === 'json' ? c : undefined);
     if (j && (j.sql || j.text)) return { sql: j.sql, sqlExplanation: j.sql_explanation ?? j.explanation, text: j.text };
+    if (j && j.result !== undefined && j.result !== '') return { output: parseMaybe(j.result) };
   }
   return {};
+}
+
+function parseMaybe(v: unknown): unknown {
+  if (typeof v !== 'string') return v;
+  try {
+    return JSON.parse(v);
+  } catch {
+    return v;
+  }
 }
 
 function chartEvent(index: number, d: any): StreamEvent[] {
